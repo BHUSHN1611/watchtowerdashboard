@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>WATCHTOWER — Security Assessment Platform</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style>
+:root{
+  --canvas:#090D12; --surface:#0D131C; --elevated:#131B26; --hover:#1A2433;
+  --border:#1E293B; --border-accent:#223249; --accent:#00E5FF; --blue:#0A84FF;
+  --pass:#10B981; --warn:#F59E0B; --critical:#EF4444; --muted:#64748B;
+  --text:#E2E8F0; --text-dim:#94A3B8; --violet:#8B5CF6; --orange:#F97316;
+  --ui:'Geist','Segoe UI',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','SFMono-Regular',ui-monospace,'Consolas',monospace;
+  --sp:8px; --r-chip:6px; --r-btn:8px; --r-panel:12px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--canvas);color:var(--text);font-family:var(--ui);
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  font-feature-settings:'ss01';letter-spacing:-0.006em;}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(0,229,255,0.22)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#263345;border-radius:6px;border:2px solid var(--canvas)}
+::-webkit-scrollbar-track{background:transparent}
+.mono{font-family:var(--mono);font-variant-ligatures:none}
+.caps{font-size:10px;line-height:1.2;letter-spacing:0.09em;text-transform:uppercase;
+  font-weight:600;color:var(--text-dim)}
+.dim{color:var(--text-dim)} .muted{color:var(--muted)}
+.h-xl{font-size:clamp(30px,5vw,40px);line-height:1.08;font-weight:600;letter-spacing:-0.025em}
+.h-lg{font-size:23px;line-height:1.25;font-weight:600;letter-spacing:-0.02em}
+.h-md{font-size:17px;line-height:1.35;font-weight:600;letter-spacing:-0.01em}
+.wt-ico{flex:0 0 auto;vertical-align:middle}
+.wt-logo{width:26px;height:26px;color:var(--accent)}
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-panel);}
+.panel-h{display:flex;align-items:center;gap:10px;padding:14px 18px;
+  border-bottom:1px solid var(--border);}
+.panel-h .caps{color:var(--text-dim)}
+.panel-h .wt-ico{color:var(--accent)}
+.panel-b{padding:18px}
+.elev{background:var(--elevated)}
+.grid{display:grid;gap:var(--sp)}
+/* chips (chiseled — never full pills) */
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+  font-size:11px;font-weight:600;letter-spacing:0.02em;padding:3px 8px;
+  border-radius:var(--r-chip);border:1px solid var(--c,#334155);
+  color:var(--c,#94A3B8);background:color-mix(in srgb,var(--c,#334155) 12%,transparent);
+  white-space:nowrap;text-transform:uppercase}
+.chip.solid{background:var(--c);color:var(--canvas)}
+.dot{width:7px;height:7px;border-radius:2px;background:var(--c,#334155);flex:0 0 auto}
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--ui);font-size:13px;
+  font-weight:600;padding:9px 15px;border-radius:var(--r-btn);border:1px solid transparent;
+  cursor:pointer;transition:.15s;letter-spacing:-0.01em;background:transparent;color:var(--text)}
+.btn .wt-ico{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#04121a;border-color:var(--accent)}
+.btn-primary:hover{box-shadow:0 0 0 3px rgba(0,229,255,0.18)}
+.btn-secondary{border-color:var(--border-accent);color:var(--accent)}
+.btn-secondary:hover{background:var(--hover);border-color:var(--accent)}
+.btn-ghost{color:var(--text-dim);border-color:var(--border)}
+.btn-ghost:hover{background:var(--hover);color:var(--text)}
+.btn-sm{padding:5px 10px;font-size:12px}
+/* stat tiles */
+.tiles{display:grid;gap:12px}
+.tile{background:var(--elevated);border:1px solid var(--border);border-radius:10px;
+  padding:15px 16px;position:relative;overflow:hidden}
+.tile .num{font-size:30px;font-weight:600;line-height:1;font-family:var(--mono);
+  letter-spacing:-0.02em;margin:8px 0 4px}
+.tile .accent-bar{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--border))}
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  font-weight:600;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--surface);z-index:1}
+.tbl td{padding:11px 12px;border-bottom:1px solid rgba(30,41,59,0.6);vertical-align:middle}
+.tbl tbody tr{cursor:pointer;transition:background .12s}
+.tbl tbody tr:hover{background:var(--hover)}
+.tbl tbody tr.active-row{background:rgba(0,229,255,0.07);box-shadow:inset 3px 0 0 var(--accent)}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* bars */
+.bar{height:7px;border-radius:4px;background:var(--hover);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--c,var(--accent));border-radius:4px}
+.hatch{background-image:repeating-linear-gradient(45deg,rgba(100,116,139,.35) 0 5px,transparent 5px 10px)}
+/* misc */
+.kv{display:flex;justify-content:space-between;gap:14px;padding:7px 0;
+  border-bottom:1px solid rgba(30,41,59,.5);font-size:13px}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--text-dim);font-size:12px}
+.kv .v{font-family:var(--mono);font-size:12px;text-align:right;word-break:break-word}
+.note{font-size:12px;color:var(--text-dim);line-height:1.55}
+.callout{border:1px solid var(--border);border-left:3px solid var(--c,var(--muted));
+  border-radius:var(--r-btn);padding:12px 14px;background:var(--elevated);font-size:12.5px}
+.empty{border:1px dashed var(--border-accent);border-radius:var(--r-panel);padding:26px;
+  text-align:center;color:var(--muted);background:repeating-linear-gradient(135deg,
+  rgba(19,27,38,.5) 0 12px,transparent 12px 24px)}
+.pre{font-family:var(--mono);font-size:11.5px;line-height:1.55;background:#060a0e;
+  border:1px solid var(--border);border-radius:var(--r-btn);padding:12px;overflow:auto;
+  white-space:pre-wrap;word-break:break-word;color:#b6c2d1;max-height:340px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(9,13,18,0.82);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.topbar .wrap{display:flex;align-items:center;gap:16px;height:60px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:0.12em;font-size:14px}
+.topnav{display:flex;gap:22px;margin-left:20px}
+.topnav a{font-size:13px;color:var(--text-dim)}
+.topnav a:hover{color:var(--accent)}
+.spacer{flex:1}
+section{padding:76px 0}
+.hero{padding:72px 0 60px;position:relative;overflow:hidden}
+.hero:before{content:"";position:absolute;inset:0;background:
+  radial-gradient(680px 320px at 22% -8%,rgba(0,229,255,0.10),transparent 70%);pointer-events:none}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-accent);
+  border-radius:var(--r-chip);padding:5px 11px;color:var(--accent);font-family:var(--mono);
+  font-size:11px;letter-spacing:0.08em}
+.hero h1{font-size:clamp(40px,7vw,66px);line-height:1;letter-spacing:-0.03em;font-weight:600;
+  margin:22px 0 12px}
+.hero .tag{font-size:clamp(17px,2.4vw,22px);color:var(--text);font-weight:500;margin:0 0 16px}
+.hero .desc{max-width:640px;color:var(--text-dim);font-size:15px;line-height:1.6}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:40px}
+.flow .node{display:inline-flex;align-items:center;gap:7px;background:var(--elevated);
+  border:1px solid var(--border);border-radius:var(--r-chip);padding:7px 11px;
+  font-family:var(--mono);font-size:11px;letter-spacing:0.06em}
+.flow .node .wt-ico{width:14px;height:14px;color:var(--accent)}
+.flow .sep{color:var(--muted)}
+.sec-head{margin-bottom:30px}
+.sec-head .caps{color:var(--accent)}
+.sec-head h2{font-size:clamp(24px,3.4vw,32px);line-height:1.15;letter-spacing:-0.02em;
+  font-weight:600;margin:8px 0 8px}
+.sec-head p{color:var(--text-dim);max-width:640px;font-size:14px}
+.cols-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cols-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.step{display:flex;gap:16px;padding:18px 0;border-top:1px solid var(--border)}
+.step .n{font-family:var(--mono);font-size:13px;color:var(--accent);width:34px;flex:0 0 auto;
+  border:1px solid var(--border-accent);border-radius:var(--r-chip);height:34px;
+  display:flex;align-items:center;justify-content:center}
+.step h3{margin:2px 0 6px;font-size:15px;letter-spacing:0.02em}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-panel);
+  padding:20px;transition:.15s}
+.card:hover{border-color:var(--border-accent);background:var(--elevated)}
+.card .ic{width:38px;height:38px;border-radius:9px;background:rgba(0,229,255,0.08);
+  border:1px solid var(--border-accent);display:flex;align-items:center;justify-content:center;
+  color:var(--accent);margin-bottom:14px}
+.card h3{font-size:15px;margin:0 0 8px}
+.card p{color:var(--text-dim);font-size:13px;line-height:1.55;margin:0}
+.taglist{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.arch{display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start}
+.arch-flow{display:flex;flex-direction:column;gap:0}
+.arch-node{display:flex;gap:14px;align-items:center;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r-btn);padding:13px 15px}
+.arch-node .ic{color:var(--accent);width:20px;height:20px}
+.arch-node.gate{border-color:var(--warn);background:rgba(245,158,11,0.06)}
+.arch-conn{height:16px;width:2px;background:var(--border-accent);margin-left:26px}
+.arch-side .panel{margin-bottom:14px}
+.snap{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.snap .tile .num{font-size:34px}
+.final{text-align:center;padding:80px 0}
+.final h2{font-size:clamp(26px,4vw,40px);line-height:1.12;letter-spacing:-0.025em;
+  max-width:760px;margin:0 auto 26px;font-weight:600}
+footer{border-top:1px solid var(--border);padding:26px 0;color:var(--muted);font-size:12px}
+@media(max-width:900px){.cols-2,.cols-4,.arch{grid-template-columns:1fr}
+  .snap{grid-template-columns:repeat(3,1fr)}.arch-side{margin-top:8px}}
+@media(max-width:560px){.snap{grid-template-columns:repeat(2,1fr)}.topnav{display:none}
+  section{padding:52px 0}}
+</style></head><body>
+<header class="topbar"><div class="wrap">
+  <div class="brand"><svg class="wt-logo" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.2 4 5.4v6.1c0 4.7 3.2 8.3 8 10.3 4.8-2 8-5.6 8-10.3V5.4L12 2.2Z" stroke="currentColor" stroke-width="1.4" fill="rgba(0,229,255,0.06)"/><path d="M12 7.5v5.2M12 15.6v.05" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="11" r="2.1" stroke="currentColor" stroke-width="1.2"/></svg> WATCHTOWER</div>
+  <nav class="topnav">
+    <a href="#pipeline">Pipeline</a><a href="#capabilities">Capabilities</a>
+    <a href="#architecture">Architecture</a><a href="#snapshot">Snapshot</a>
+    <a href="#evidence">Evidence</a>
+  </nav>
+  <div class="spacer"></div>
+  <a class="btn btn-primary btn-sm" href="dashboard.html">Launch Dashboard <svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <span class="eyebrow"><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4 3 7 7 8.5C16 18 19 15 19 11V6l-7-3Z"/></svg> EVIDENCE-DRIVEN SECURITY ASSESSMENT</span>
+  <h1>WATCHTOWER</h1>
+  <p class="tag">Automated Security Assessment &amp; Evidence Verification</p>
+  <p class="desc">An evidence-driven security assessment platform that discovers attack
+  surfaces, correlates security findings, verifies suspected weaknesses, and produces
+  reproducible security decisions.</p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="dashboard.html">Launch Dashboard <svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <a class="btn btn-secondary" href="#architecture"><svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg> View Architecture</a>
+  </div>
+  <div class="flow">
+    <span class="node" title="Static, read-only attack-surface discovery enumerates endpoints, integrations, environment references and risk-tagged surfaces from the target&#39;s source."><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg> DISCOVER</span>
+<span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>    <span class="node" title="Configured scanners and active probes run against the local target. Uninstalled scanners are skipped and recorded as coverage limitations — never silently."><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/></svg> SCAN</span>
+<span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>    <span class="node" title="Heterogeneous tool output is normalized into one finding model, each with a stable content fingerprint used as its identity."><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg> NORMALIZE</span>
+<span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>    <span class="node" title="Findings describing the same weakness across tools are grouped so corroborating evidence is visible and duplicates collapse."><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="6" cy="18" r="1.8"/><path d="M10.3 10.6 6.4 7.2M13.7 10.6l3.8-3.4M10.6 13.6 7.3 16.6"/></svg> CORRELATE</span>
+<span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>    <span class="node" title="Active probes attempt to confirm or refute suspected weaknesses. Results are recorded as confirmed, refuted, inconclusive or not applicable."><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> VERIFY</span>
+<span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>    <span class="node" title="Each finding receives a WATCHTOWER Risk Score (watchtower-risk-score-v1) from severity, verification and asset factors. This is not CVSS."><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M6 20h12M7 4l-4 7a3 3 0 0 0 6 0L5 4M19 4l-4 7a3 3 0 0 0 6 0l-2-7"/></svg> SCORE</span>
+<span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>    <span class="node" title="Every finding carries a plain-language explanation, an evidence chain and an evidence-confidence rating (high / medium / low)."><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg> EXPLAIN</span>
+<span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>    <span class="node" title="A reproducible report.json / report.html / report.sarif is produced and a security gate renders a PASS / WARN / FAIL decision."><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg> REPORT</span>
+  </div>
+</div></section>
+
+<section id="pipeline"><div class="wrap">
+  <div class="sec-head">
+    <div class="caps">Assessment pipeline</div>
+    <h2>Eight stages, every result traceable</h2>
+    <p>Each stage records what it did — including what it skipped — so a decision can be
+    reproduced and audited rather than trusted on faith.</p>
+  </div>
+  <div class="step">
+    <div class="n">01</div>
+    <div><h3><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg> DISCOVER</h3><p class="note">Static, read-only attack-surface discovery enumerates endpoints, integrations, environment references and risk-tagged surfaces from the target&#39;s source.</p></div>
+  </div>
+  <div class="step">
+    <div class="n">02</div>
+    <div><h3><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/></svg> SCAN</h3><p class="note">Configured scanners and active probes run against the local target. Uninstalled scanners are skipped and recorded as coverage limitations — never silently.</p></div>
+  </div>
+  <div class="step">
+    <div class="n">03</div>
+    <div><h3><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg> NORMALIZE</h3><p class="note">Heterogeneous tool output is normalized into one finding model, each with a stable content fingerprint used as its identity.</p></div>
+  </div>
+  <div class="step">
+    <div class="n">04</div>
+    <div><h3><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="6" cy="18" r="1.8"/><path d="M10.3 10.6 6.4 7.2M13.7 10.6l3.8-3.4M10.6 13.6 7.3 16.6"/></svg> CORRELATE</h3><p class="note">Findings describing the same weakness across tools are grouped so corroborating evidence is visible and duplicates collapse.</p></div>
+  </div>
+  <div class="step">
+    <div class="n">05</div>
+    <div><h3><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> VERIFY</h3><p class="note">Active probes attempt to confirm or refute suspected weaknesses. Results are recorded as confirmed, refuted, inconclusive or not applicable.</p></div>
+  </div>
+  <div class="step">
+    <div class="n">06</div>
+    <div><h3><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M6 20h12M7 4l-4 7a3 3 0 0 0 6 0L5 4M19 4l-4 7a3 3 0 0 0 6 0l-2-7"/></svg> SCORE</h3><p class="note">Each finding receives a WATCHTOWER Risk Score (watchtower-risk-score-v1) from severity, verification and asset factors. This is not CVSS.</p></div>
+  </div>
+  <div class="step">
+    <div class="n">07</div>
+    <div><h3><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg> EXPLAIN</h3><p class="note">Every finding carries a plain-language explanation, an evidence chain and an evidence-confidence rating (high / medium / low).</p></div>
+  </div>
+  <div class="step">
+    <div class="n">08</div>
+    <div><h3><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg> REPORT</h3><p class="note">A reproducible report.json / report.html / report.sarif is produced and a security gate renders a PASS / WARN / FAIL decision.</p></div>
+  </div>
+</div></section>
+<section id="capabilities" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)"><div class="wrap">
+  <div class="sec-head">
+    <div class="caps">Capabilities</div>
+    <h2>What WATCHTOWER actually does</h2>
+    <p>Only implemented checks are described. Several external scanners are integrated but
+    were not installed for the current assessment — they are shown as coverage limitations,
+    not completed work.</p>
+  </div>
+  <div class="cols-4">
+    <div class="card"><div class="ic"><svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></div>
+      <h3>Attack Surface Discovery</h3><p>Static, read-only enumeration of endpoints, integrations and environment references. Risk tags mark candidate security-relevant surfaces — they are not vulnerability findings.</p></div>
+    <div class="card"><div class="ic"><svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></div>
+      <h3>Evidence-Based Verification</h3><p>Active probes exercise suspected weaknesses and record confirmed / refuted / inconclusive / not-applicable results. Inconclusive is never promoted to verified.</p></div>
+    <div class="card"><div class="ic"><svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="6" cy="18" r="1.8"/><path d="M10.3 10.6 6.4 7.2M13.7 10.6l3.8-3.4M10.6 13.6 7.3 16.6"/></svg></div>
+      <h3>Multi-Scanner Correlation</h3><p>Normalized findings are fingerprinted, de-duplicated and correlated across tools so shared evidence is grouped rather than double-counted.</p></div>
+    <div class="card"><div class="ic"><svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15"/><path d="M4 10h16M9 6v15M15 6v15"/></svg></div>
+      <h3>Security Gate</h3><p>A structured watchtower-gate-v1 decision (PASS / WARN / FAIL) driven by verified findings and coverage limitations, with an optional baseline for regression comparison.</p></div>
+  </div>
+  <div class="cols-2" style="margin-top:16px">
+    <div class="card">
+      <div class="caps" style="color:var(--pass)"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Executed in this assessment</div>
+      <div class="taglist" style="margin-top:12px">
+<span class="chip" style="--c:var(--pass)">attack-surface discovery</span><span class="chip" style="--c:var(--pass)">npm audit</span><span class="chip" style="--c:var(--pass)">security headers</span><span class="chip" style="--c:var(--pass)">CORS policy</span><span class="chip" style="--c:var(--pass)">rate-limit enforcement</span><span class="chip" style="--c:var(--pass)">MCP / auth access control</span><span class="chip" style="--c:var(--pass)">SSRF checks</span><span class="chip" style="--c:var(--pass)">correlation</span><span class="chip" style="--c:var(--pass)">verification</span><span class="chip" style="--c:var(--pass)">baseline comparison</span><span class="chip" style="--c:var(--pass)">security gate</span>      </div>
+    </div>
+    <div class="card">
+      <div class="caps" style="color:var(--muted)"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg> Integrated but skipped (not installed)</div>
+      <div class="taglist" style="margin-top:12px">
+<span class="chip hatch" style="--c:var(--muted)">semgrep · skipped</span><span class="chip hatch" style="--c:var(--muted)">gitleaks · skipped</span><span class="chip hatch" style="--c:var(--muted)">osv-scanner · skipped</span><span class="chip hatch" style="--c:var(--muted)">zap · skipped</span><span class="chip hatch" style="--c:var(--muted)">nuclei · skipped</span>      </div>
+      <p class="note" style="margin-top:12px">Skipped scanners reduce coverage and contribute
+      to the current WARN gate decision. WATCHTOWER never reports a skipped scanner as complete.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="architecture"><div class="wrap">
+  <div class="sec-head">
+    <div class="caps">Architecture</div>
+    <h2>Target in, reproducible decision out</h2>
+    <p>A single directional flow from the target application to a structured security-gate
+    decision. Artifacts are emitted at the end; the gate is WATCHTOWER's own policy — not CVSS.</p>
+  </div>
+  <div class="arch">
+    <div class="arch-flow">
+      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">TARGET APPLICATION</div>
+        <div class="note">Local instance under assessment (http://localhost:3000).</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">ATTACK-SURFACE DISCOVERY</div>
+        <div class="note">Static endpoint / integration / env enumeration.</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">SCANNER / CHECK EXECUTION</div>
+        <div class="note">Scanners + active probes; skips recorded honestly.</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">NORMALIZATION</div>
+        <div class="note">Unified finding model + stable fingerprints.</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="6" cy="18" r="1.8"/><path d="M10.3 10.6 6.4 7.2M13.7 10.6l3.8-3.4M10.6 13.6 7.3 16.6"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">CORRELATION</div>
+        <div class="note">Cross-tool grouping and de-duplication.</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">VERIFICATION</div>
+        <div class="note">Confirm / refute / inconclusive / not applicable.</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M6 20h12M7 4l-4 7a3 3 0 0 0 6 0L5 4M19 4l-4 7a3 3 0 0 0 6 0l-2-7"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">RISK SCORING</div>
+        <div class="note">watchtower-risk-score-v1 (not CVSS).</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">EXPLANATION + EVIDENCE</div>
+        <div class="note">Explanations, evidence chains, confidence.</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node ">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">REPORT</div>
+        <div class="note">report.json · report.html · report.sarif.</div></div>
+      </div>
+<div class="arch-conn"></div>      <div class="arch-node gate">
+        <svg class="wt-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15"/><path d="M4 10h16M9 6v15M15 6v15"/></svg>
+        <div><div class="mono" style="font-size:12px;letter-spacing:0.06em">SECURITY GATE</div>
+        <div class="note">watchtower-gate-v1 · PASS / WARN / FAIL.</div></div>
+      </div>
+    </div>
+    <div class="arch-side">
+      <div class="panel"><div class="panel-h"><svg class="wt-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg><span class="caps">Report artifacts</span></div>
+        <div class="panel-b">
+          <div class="kv"><span class="k">Machine-readable</span><span class="v">report.json</span></div>
+          <div class="kv"><span class="k">Human dashboard</span><span class="v">report.html</span></div>
+          <div class="kv"><span class="k">Tooling interchange</span><span class="v">report.sarif</span></div>
+        </div></div>
+      <div class="panel"><div class="panel-h"><svg class="wt-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2L4 8M4 4v4h4"/><path d="M12 8v4l3 2"/></svg><span class="caps">Continuous (Phase 6)</span></div>
+        <div class="panel-b">
+          <div class="kv"><span class="k">Baseline</span><span class="v">baseline.json</span></div>
+          <div class="kv"><span class="k">Regression</span><span class="v">diff</span></div>
+          <div class="kv"><span class="k">Decision</span><span class="v">gate</span></div>
+        </div></div>
+      <div class="panel" style="border-color:var(--warn)"><div class="panel-b" style="text-align:center">
+        <div class="caps" style="color:var(--warn)">WATCHTOWER GATE</div>
+        <div class="mono" style="font-size:16px;margin-top:6px">watchtower-gate-v1</div>
+        <p class="note" style="margin-top:6px">Structured PASS / WARN / FAIL. Not a CVSS gate.</p>
+      </div></div>
+    </div>
+  </div>
+</div></section>
+<section id="snapshot" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)"><div class="wrap">
+  <div class="sec-head">
+    <div class="caps">Real assessment snapshot</div>
+    <h2>Current local World Monitor assessment</h2>
+  </div>
+  <div class="snap">
+    <div class="tile"><span class="accent-bar" style="--c:var(--accent)"></span>
+      <div class="caps">Endpoints</div><div class="num">461</div>
+      <div class="note">attack surface</div></div>
+    <div class="tile"><span class="accent-bar" style="--c:var(--blue)"></span>
+      <div class="caps">Findings</div><div class="num">17</div>
+      <div class="note">normalized</div></div>
+    <div class="tile"><span class="accent-bar" style="--c:var(--pass)"></span>
+      <div class="caps">Verified</div><div class="num" style="color:var(--pass)">4</div>
+      <div class="note">confirmed</div></div>
+    <div class="tile"><span class="accent-bar" style="--c:var(--warn)"></span>
+      <div class="caps">Manual review</div><div class="num" style="color:var(--warn)">8</div>
+      <div class="note">unresolved</div></div>
+    <div class="tile"><span class="accent-bar" style="--c:var(--muted)"></span>
+      <div class="caps">False positive</div><div class="num" style="color:var(--muted)">5</div>
+      <div class="note">refuted</div></div>
+    <div class="tile"><span class="accent-bar" style="--c:var(--warn)"></span>
+      <div class="caps">Security gate</div><div class="num" style="color:var(--warn)">WARN</div>
+      <div class="note mono">watchtower-gate-v1</div></div>
+  </div>
+  <p class="note" style="margin-top:18px;max-width:720px"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg> Snapshot from the current local World Monitor assessment. Values are assessment-specific and not presented as global product performance.</p>
+</div></section>
+
+<section id="evidence"><div class="wrap">
+  <div class="sec-head">
+    <div class="caps">Evidence &amp; lifecycle</div>
+    <h2>From scanner signal to a defensible decision</h2>
+    <p>Every finding moves through an explicit lifecycle. WATCHTOWER does not claim zero
+    false positives or total verification — it states exactly what was confirmed, what was
+    refuted, and what still needs a human.</p>
+  </div>
+  <div class="flow" style="margin-top:0">
+    <span class="node"><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/></svg> Scanner finding</span>
+    <span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    <span class="node"><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="6" cy="18" r="1.8"/><path d="M10.3 10.6 6.4 7.2M13.7 10.6l3.8-3.4M10.6 13.6 7.3 16.6"/></svg> Correlation</span>
+    <span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    <span class="node"><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Verification</span>
+    <span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    <span class="node"><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11a6 6 0 0 1 12 0v2M8 13v-2a4 4 0 0 1 8 0v3M10 15v-4a2 2 0 0 1 4 0v5M12 13v6"/></svg> Evidence</span>
+    <span class="sep"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    <span class="node"><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15"/><path d="M4 10h16M9 6v15M15 6v15"/></svg> Lifecycle decision</span>
+  </div>
+  <div class="cols-4" style="margin-top:22px">
+    <div class="callout" style="--c:var(--accent)"><div class="caps" style="color:var(--accent)">Suspected</div>
+      <p class="note" style="margin-top:6px">Reported by a scanner, not yet verified.</p></div>
+    <div class="callout" style="--c:var(--violet)"><div class="caps" style="color:var(--violet)">Correlated</div>
+      <p class="note" style="margin-top:6px">Corroborated across more than one tool.</p></div>
+    <div class="callout" style="--c:var(--pass)"><div class="caps" style="color:var(--pass)">Verified</div>
+      <p class="note" style="margin-top:6px">Confirmed by an active probe.</p></div>
+    <div class="callout" style="--c:var(--warn)"><div class="caps" style="color:var(--warn)">Needs manual review</div>
+      <p class="note" style="margin-top:6px">Inconclusive — a human decision is required.</p></div>
+  </div>
+  <div class="callout" style="--c:var(--muted);margin-top:12px"><div class="caps" style="color:var(--muted)">False positive</div>
+    <p class="note" style="margin-top:6px">Refuted by evidence and recorded as such — not hidden.</p></div>
+</div></section>
+
+<section class="final"><div class="wrap">
+  <h2>Know what was discovered.<br>Know what was verified.<br>Know what still needs review.</h2>
+  <a class="btn btn-primary" href="dashboard.html">Open WATCHTOWER Dashboard <svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div></section>
+
+<footer><div class="wrap" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+  <div class="brand" style="font-size:12px"><svg class="wt-logo" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.2 4 5.4v6.1c0 4.7 3.2 8.3 8 10.3 4.8-2 8-5.6 8-10.3V5.4L12 2.2Z" stroke="currentColor" stroke-width="1.4" fill="rgba(0,229,255,0.06)"/><path d="M12 7.5v5.2M12 15.6v.05" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="11" r="2.1" stroke="currentColor" stroke-width="1.2"/></svg> WATCHTOWER</div>
+  <span class="spacer"></span>
+  <span class="mono">watchtower-gate-v1</span><span>·</span>
+  <span>Local assessment · not a CVSS gate · evidence over assertion</span>
+</div></footer>
+</body></html>

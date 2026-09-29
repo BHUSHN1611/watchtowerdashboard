@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>WATCHTOWER — Security Operations Console</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style>
+:root{
+  --canvas:#090D12; --surface:#0D131C; --elevated:#131B26; --hover:#1A2433;
+  --border:#1E293B; --border-accent:#223249; --accent:#00E5FF; --blue:#0A84FF;
+  --pass:#10B981; --warn:#F59E0B; --critical:#EF4444; --muted:#64748B;
+  --text:#E2E8F0; --text-dim:#94A3B8; --violet:#8B5CF6; --orange:#F97316;
+  --ui:'Geist','Segoe UI',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','SFMono-Regular',ui-monospace,'Consolas',monospace;
+  --sp:8px; --r-chip:6px; --r-btn:8px; --r-panel:12px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--canvas);color:var(--text);font-family:var(--ui);
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  font-feature-settings:'ss01';letter-spacing:-0.006em;}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(0,229,255,0.22)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#263345;border-radius:6px;border:2px solid var(--canvas)}
+::-webkit-scrollbar-track{background:transparent}
+.mono{font-family:var(--mono);font-variant-ligatures:none}
+.caps{font-size:10px;line-height:1.2;letter-spacing:0.09em;text-transform:uppercase;
+  font-weight:600;color:var(--text-dim)}
+.dim{color:var(--text-dim)} .muted{color:var(--muted)}
+.h-xl{font-size:clamp(30px,5vw,40px);line-height:1.08;font-weight:600;letter-spacing:-0.025em}
+.h-lg{font-size:23px;line-height:1.25;font-weight:600;letter-spacing:-0.02em}
+.h-md{font-size:17px;line-height:1.35;font-weight:600;letter-spacing:-0.01em}
+.wt-ico{flex:0 0 auto;vertical-align:middle}
+.wt-logo{width:26px;height:26px;color:var(--accent)}
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-panel);}
+.panel-h{display:flex;align-items:center;gap:10px;padding:14px 18px;
+  border-bottom:1px solid var(--border);}
+.panel-h .caps{color:var(--text-dim)}
+.panel-h .wt-ico{color:var(--accent)}
+.panel-b{padding:18px}
+.elev{background:var(--elevated)}
+.grid{display:grid;gap:var(--sp)}
+/* chips (chiseled — never full pills) */
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+  font-size:11px;font-weight:600;letter-spacing:0.02em;padding:3px 8px;
+  border-radius:var(--r-chip);border:1px solid var(--c,#334155);
+  color:var(--c,#94A3B8);background:color-mix(in srgb,var(--c,#334155) 12%,transparent);
+  white-space:nowrap;text-transform:uppercase}
+.chip.solid{background:var(--c);color:var(--canvas)}
+.dot{width:7px;height:7px;border-radius:2px;background:var(--c,#334155);flex:0 0 auto}
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--ui);font-size:13px;
+  font-weight:600;padding:9px 15px;border-radius:var(--r-btn);border:1px solid transparent;
+  cursor:pointer;transition:.15s;letter-spacing:-0.01em;background:transparent;color:var(--text)}
+.btn .wt-ico{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#04121a;border-color:var(--accent)}
+.btn-primary:hover{box-shadow:0 0 0 3px rgba(0,229,255,0.18)}
+.btn-secondary{border-color:var(--border-accent);color:var(--accent)}
+.btn-secondary:hover{background:var(--hover);border-color:var(--accent)}
+.btn-ghost{color:var(--text-dim);border-color:var(--border)}
+.btn-ghost:hover{background:var(--hover);color:var(--text)}
+.btn-sm{padding:5px 10px;font-size:12px}
+/* stat tiles */
+.tiles{display:grid;gap:12px}
+.tile{background:var(--elevated);border:1px solid var(--border);border-radius:10px;
+  padding:15px 16px;position:relative;overflow:hidden}
+.tile .num{font-size:30px;font-weight:600;line-height:1;font-family:var(--mono);
+  letter-spacing:-0.02em;margin:8px 0 4px}
+.tile .accent-bar{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--border))}
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  font-weight:600;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--surface);z-index:1}
+.tbl td{padding:11px 12px;border-bottom:1px solid rgba(30,41,59,0.6);vertical-align:middle}
+.tbl tbody tr{cursor:pointer;transition:background .12s}
+.tbl tbody tr:hover{background:var(--hover)}
+.tbl tbody tr.active-row{background:rgba(0,229,255,0.07);box-shadow:inset 3px 0 0 var(--accent)}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* bars */
+.bar{height:7px;border-radius:4px;background:var(--hover);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--c,var(--accent));border-radius:4px}
+.hatch{background-image:repeating-linear-gradient(45deg,rgba(100,116,139,.35) 0 5px,transparent 5px 10px)}
+/* misc */
+.kv{display:flex;justify-content:space-between;gap:14px;padding:7px 0;
+  border-bottom:1px solid rgba(30,41,59,.5);font-size:13px}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--text-dim);font-size:12px}
+.kv .v{font-family:var(--mono);font-size:12px;text-align:right;word-break:break-word}
+.note{font-size:12px;color:var(--text-dim);line-height:1.55}
+.callout{border:1px solid var(--border);border-left:3px solid var(--c,var(--muted));
+  border-radius:var(--r-btn);padding:12px 14px;background:var(--elevated);font-size:12.5px}
+.empty{border:1px dashed var(--border-accent);border-radius:var(--r-panel);padding:26px;
+  text-align:center;color:var(--muted);background:repeating-linear-gradient(135deg,
+  rgba(19,27,38,.5) 0 12px,transparent 12px 24px)}
+.pre{font-family:var(--mono);font-size:11.5px;line-height:1.55;background:#060a0e;
+  border:1px solid var(--border);border-radius:var(--r-btn);padding:12px;overflow:auto;
+  white-space:pre-wrap;word-break:break-word;color:#b6c2d1;max-height:340px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+body{overflow:hidden}
+.app{display:grid;grid-template-columns:244px 1fr;height:100vh}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;
+  flex-direction:column;height:100vh;position:sticky;top:0}
+.sb-brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:0.12em;
+  font-size:14px;padding:18px 18px;border-bottom:1px solid var(--border)}
+.sb-nav{flex:1;overflow-y:auto;padding:16px 12px}
+.sb-group{margin-bottom:20px}
+.sb-group>.caps{padding:0 10px 8px}
+.sb-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:var(--r-btn);
+  color:var(--text-dim);font-size:13px;font-weight:500;cursor:pointer}
+.sb-item .wt-ico{width:17px;height:17px}
+.sb-item:hover{background:var(--hover);color:var(--text)}
+.sb-item.active{background:rgba(0,229,255,0.08);color:var(--accent);
+  box-shadow:inset 2px 0 0 var(--accent)}
+.sb-target{margin:12px;padding:12px;border:1px solid var(--border);border-radius:var(--r-btn);
+  background:var(--elevated)}
+.sb-target .val{font-family:var(--mono);font-size:12px;color:var(--text);margin-top:4px}
+.main{overflow-y:auto;height:100vh}
+.topbar-d{position:sticky;top:0;z-index:15;background:rgba(9,13,18,0.9);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:16px;padding:14px 26px}
+.topbar-d .meta{display:flex;gap:22px;flex-wrap:wrap}
+.topbar-d .meta .k{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
+.topbar-d .meta .v{font-family:var(--mono);font-size:12px;color:var(--text)}
+.status-pill{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;
+  font-weight:600;padding:5px 10px;border-radius:var(--r-chip);color:var(--pass);
+  border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.08)}
+.content{padding:24px 26px 60px;max-width:1440px}
+.blk{margin-bottom:26px}
+.blk-h{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.blk-h .wt-ico{color:var(--accent)}
+.blk-h h2{font-size:15px;letter-spacing:0.02em;font-weight:600;margin:0}
+.blk-h .spacer{flex:1}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.posture .num{font-size:34px}
+.posture .sub{font-size:11px;color:var(--muted);margin-top:6px}
+/* gate hero */
+.gate-hero{border:1px solid var(--warn);border-radius:var(--r-panel);overflow:hidden;
+  background:linear-gradient(180deg,rgba(245,158,11,0.08),rgba(245,158,11,0.02))}
+.gate-hero .top{display:flex;align-items:flex-start;gap:18px;padding:20px 22px;flex-wrap:wrap}
+.gate-badge{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:0.04em;
+  padding:12px 20px;border-radius:10px;background:var(--warn);color:#1a1204}
+.gate-hero .msg{flex:1;min-width:240px}
+.gate-hero .msg h3{margin:0 0 6px;font-size:16px;letter-spacing:0.02em}
+.gate-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+  border-top:1px solid var(--border)}
+.gate-metrics .m{background:var(--surface);padding:15px 18px}
+.gate-metrics .m .num{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:6px}
+.reasons{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.reason{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r-btn);
+  background:var(--elevated);border:1px solid var(--border);font-size:12.5px}
+/* attack surface */
+.tag-row{display:grid;grid-template-columns:200px 1fr 54px;gap:12px;align-items:center;
+  padding:7px 0;font-size:12.5px}
+.tag-row .mono{color:var(--text)}
+/* findings + inspector */
+.split{display:grid;grid-template-columns:1fr 384px;gap:16px;align-items:start}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.search{display:flex;align-items:center;gap:8px;background:var(--elevated);
+  border:1px solid var(--border);border-radius:var(--r-btn);padding:8px 12px;flex:1;min-width:220px}
+.search input{background:transparent;border:0;outline:0;color:var(--text);font-size:13px;
+  width:100%;font-family:var(--ui)}
+.search .wt-ico{color:var(--muted)}
+.fbtn{font-family:var(--mono);font-size:11px;font-weight:600;padding:6px 11px;border-radius:var(--r-chip);
+  border:1px solid var(--border);background:var(--elevated);color:var(--text-dim);cursor:pointer}
+.fbtn:hover{border-color:var(--border-accent);color:var(--text)}
+.fbtn.on{background:var(--accent);color:#04121a;border-color:var(--accent)}
+.finding-row td:first-child{max-width:280px}
+.f-title{font-weight:500;color:var(--text);display:block;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;max-width:270px}
+.inspector{position:sticky;top:78px;max-height:calc(100vh - 100px);overflow-y:auto}
+.insp-empty{color:var(--muted);text-align:center;padding:40px 20px;font-size:13px}
+.insp-field{padding:10px 0;border-bottom:1px solid rgba(30,41,59,.5)}
+.insp-field .lbl{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
+.insp-field .txt{font-size:13px;margin-top:4px;line-height:1.5;word-break:break-word}
+.insp-field .txt.na{color:var(--muted);font-family:var(--mono);font-size:11px}
+.rel{display:inline-flex;gap:6px;font-size:11px;font-family:var(--mono);margin:3px 6px 3px 0;
+  padding:3px 8px;border-radius:var(--r-chip);border:1px solid var(--border);background:var(--elevated)}
+.rel b{color:var(--accent);font-weight:600}
+@media(max-width:1180px){.split{grid-template-columns:1fr}.inspector{position:static;max-height:none}
+  .g4,.gate-metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{position:static;height:auto;
+  flex-direction:row;flex-wrap:wrap;align-items:center}.sb-nav{display:flex;gap:4px;overflow-x:auto;
+  padding:8px}.sb-group{display:flex;gap:4px;margin:0}.sb-group>.caps,.sb-target{display:none}
+  .main{height:auto}body{overflow:auto}.g3,.g2{grid-template-columns:1fr}}
+@media(max-width:560px){.g4,.gate-metrics{grid-template-columns:1fr}.tag-row{grid-template-columns:120px 1fr 40px}
+  .topbar-d{flex-wrap:wrap}}
+</style></head><body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand"><svg class="wt-logo" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.2 4 5.4v6.1c0 4.7 3.2 8.3 8 10.3 4.8-2 8-5.6 8-10.3V5.4L12 2.2Z" stroke="currentColor" stroke-width="1.4" fill="rgba(0,229,255,0.06)"/><path d="M12 7.5v5.2M12 15.6v.05" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="11" r="2.1" stroke="currentColor" stroke-width="1.2"/></svg> WATCHTOWER</div>
+    <nav class="sb-nav">
+      <div class="sb-group"><div class="caps">Operations</div>
+        <a class="sb-item active" href="#overview"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg> Overview</a>
+        <a class="sb-item " href="#surface"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg> Attack Surface</a>
+        <a class="sb-item " href="#findings"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg> Findings</a>
+        <a class="sb-item " href="#coverage"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v2M14 3v2M10 19v2M14 19v2M3 10h2M3 14h2M19 10h2M19 14h2"/></svg> Coverage</a>
+        <a class="sb-item " href="#gate"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15"/><path d="M4 10h16M9 6v15M15 6v15"/></svg> Security Gate</a>
+        <a class="sb-item " href="#findings"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11a6 6 0 0 1 12 0v2M8 13v-2a4 4 0 0 1 8 0v3M10 15v-4a2 2 0 0 1 4 0v5M12 13v6"/></svg> Evidence</a>
+        <a class="sb-item " href="#runs"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2L4 8M4 4v4h4"/><path d="M12 8v4l3 2"/></svg> Runs</a>
+      </div>
+      <div class="sb-group"><div class="caps">System</div>
+        <a class="sb-item" href="index.html"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg> Documentation</a>
+        <a class="sb-item" href="#" onclick="return false" title="Settings are managed via the CLI"><svg class="wt-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg> Settings</a>
+      </div>
+    </nav>
+    <div class="sb-target">
+      <div class="caps">Active target</div>
+      <div class="val">http://localhost:3000</div>
+      <div class="chip" style="--c:var(--blue);margin-top:8px"><svg class="wt-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6"/></svg> Local assessment</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar-d">
+      <div>
+        <div class="caps" style="color:var(--muted)">Security Operations Console</div>
+        <div class="h-md" style="margin-top:2px">Assessment Overview</div>
+      </div>
+      <div class="meta">
+        <div><div class="k">Target</div><div class="v">http://localhost:3000</div></div>
+        <div><div class="k">Run</div><div class="v">run-20260928T111009Z</div></div>
+        <div><div class="k">Completed</div><div class="v">28 Sep 2026 · 11:11 UTC</div></div>
+      </div>
+      <div class="spacer" style="flex:1"></div>
+      <span class="status-pill"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Assessment complete</span>
+      <button class="btn btn-ghost btn-sm" id="rerun" title="Run: python watchtower.py --repo . --target http://localhost:3000"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8M20 4v4h-4M20 12a8 8 0 0 1-13.7 5.6L4 16M4 20v-4h4"/></svg> Re-run Assessment</button>
+      <a class="btn btn-secondary btn-sm" href="#findings"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Export Evidence</a>
+    </div>
+
+    <div class="content">
+      <section class="blk" id="overview">
+        <div class="blk-h"><svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg><h2>Security Posture</h2></div>
+        <div class="g4 posture">
+          <div class="tile"><span class="accent-bar" style="--c:#EF4444"></span>
+            <div class="caps"><span class="dot" style="--c:#EF4444"></span> Critical</div>
+            <div class="num" style="color:var(--text)">0</div>
+            <div class="sub">verified · 0 at this severity</div>
+          </div>
+          <div class="tile"><span class="accent-bar" style="--c:#F97316"></span>
+            <div class="caps"><span class="dot" style="--c:#F97316"></span> High</div>
+            <div class="num" style="color:var(--text)">0</div>
+            <div class="sub">verified · 2 at this severity</div>
+          </div>
+          <div class="tile"><span class="accent-bar" style="--c:#F59E0B"></span>
+            <div class="caps"><span class="dot" style="--c:#F59E0B"></span> Medium</div>
+            <div class="num" style="color:var(--text)">0</div>
+            <div class="sub">verified · 2 at this severity</div>
+          </div>
+          <div class="tile"><span class="accent-bar" style="--c:var(--warn)"></span>
+            <div class="caps"><span class="dot" style="--c:var(--warn)"></span> Manual Review</div>
+            <div class="num" style="color:var(--warn)">8</div>
+            <div class="sub">awaiting human decision</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="blk" id="gate">
+        <div class="blk-h"><svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15"/><path d="M4 10h16M9 6v15M15 6v15"/></svg><h2>Security Gate Decision</h2></div>
+        <div class="gate-hero">
+          <div class="top">
+            <div class="gate-badge" style="background:#F59E0B">WARN</div>
+            <div class="msg">
+              <h3>No verified Critical or High findings are currently present. The assessment remains in WARN because manual-review findings and coverage limitations remain.</h3>
+              <div class="mono dim" style="font-size:12px">policy watchtower-gate-v1 · baseline-aware: no</div>
+              <div class="reasons">
+                <div class="reason"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg><span>coverage limitation: scanners_skipped (5)</span></div>
+                <div class="reason"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg><span>coverage limitation: unavailable_runtime_surfaces (6)</span></div>
+                <div class="reason"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg><span>8 finding(s) need manual review</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="gate-metrics">
+            <div class="m"><div class="caps">Verified Findings</div><div class="num" style="color:var(--pass)">4</div></div>
+            <div class="m"><div class="caps">Manual Review</div><div class="num" style="color:var(--warn)">8</div></div>
+            <div class="m"><div class="caps">Skipped Scanners</div><div class="num" style="color:var(--muted)">5</div></div>
+            <div class="m"><div class="caps">Unavailable Runtime Surfaces</div><div class="num" style="color:var(--muted)">6</div></div>
+          </div>
+        </div>
+      </section>
+      <section class="blk" id="surface">
+        <div class="blk-h"><svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg><h2>Attack Surface</h2><span class="spacer"></span>
+          <span class="chip" style="--c:var(--accent)">461 endpoints · static discovery</span></div>
+        <div class="g2">
+          <div class="panel"><div class="panel-h"><svg class="wt-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v2M14 3v2M10 19v2M14 19v2M3 10h2M3 14h2M19 10h2M19 14h2"/></svg><span class="caps">Risk tag assignments</span></div>
+            <div class="panel-b">
+              <div class="tag-row"><span class="mono">rpc</span>
+                <div class="bar"><span style="width:100%;--c:var(--accent)"></span></div>
+                <span class="mono" style="text-align:right">294</span></div>
+              <div class="tag-row"><span class="mono">rate_limit_candidate</span>
+                <div class="bar"><span style="width:72%;--c:var(--accent)"></span></div>
+                <span class="mono" style="text-align:right">213</span></div>
+              <div class="tag-row"><span class="mono">secret_sensitive</span>
+                <div class="bar"><span style="width:66%;--c:var(--accent)"></span></div>
+                <span class="mono" style="text-align:right">195</span></div>
+              <div class="tag-row"><span class="mono">mcp</span>
+                <div class="bar"><span style="width:61%;--c:var(--accent)"></span></div>
+                <span class="mono" style="text-align:right">180</span></div>
+              <div class="tag-row"><span class="mono">external_fetch</span>
+                <div class="bar"><span style="width:42%;--c:var(--accent)"></span></div>
+                <span class="mono" style="text-align:right">124</span></div>
+              <div class="tag-row"><span class="mono">auth_boundary</span>
+                <div class="bar"><span style="width:25%;--c:var(--accent)"></span></div>
+                <span class="mono" style="text-align:right">74</span></div>
+              <div class="tag-row"><span class="mono">cors_candidate</span>
+                <div class="bar"><span style="width:22%;--c:var(--accent)"></span></div>
+                <span class="mono" style="text-align:right">64</span></div>
+              <div class="tag-row"><span class="mono">ssrf_candidate</span>
+                <div class="bar"><span style="width:7%;--c:var(--accent)"></span></div>
+                <span class="mono" style="text-align:right">20</span></div>
+              <p class="note" style="margin-top:14px"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg> Risk tags identify
+              candidate security-relevant surfaces. They are <b>not</b> vulnerability findings and are
+              not counted as vulnerabilities.</p>
+            </div>
+          </div>
+          <div>
+            <div class="g2">
+              <div class="tile"><div class="caps">Endpoints</div><div class="num">461</div></div>
+              <div class="tile"><div class="caps">Security modules</div><div class="num">17</div></div>
+              <div class="tile"><div class="caps">Integrations</div><div class="num">9</div></div>
+              <div class="tile"><div class="caps">Env references</div><div class="num">56</div></div>
+            </div>
+            <div class="callout" style="--c:var(--blue);margin-top:14px">
+              <div class="caps" style="color:var(--blue)"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg> Read-only discovery</div>
+              <p class="note" style="margin-top:6px">The attack surface is enumerated statically from
+              source. Discovering a surface does not mean it was probed — see Coverage and Assessment
+              Limitations for what was actually exercised.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="blk" id="findings">
+        <div class="blk-h"><svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><h2>Findings</h2><span class="spacer"></span>
+          <span class="mono dim" id="f-count">17 findings</span></div>
+        <div class="split">
+          <div class="panel"><div class="panel-b">
+            <div class="toolbar">
+              <div class="search"><svg class="wt-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="f-search" type="text" autocomplete="off"
+                  placeholder="Filter by title, endpoint, tool or fingerprint..." /></div>
+            </div>
+            <div class="toolbar" id="f-filters">
+              <button class="fbtn on" data-filter="all">All</button>
+              <button class="fbtn " data-filter="critical">Critical</button>
+              <button class="fbtn " data-filter="high">High</button>
+              <button class="fbtn " data-filter="medium">Medium</button>
+              <button class="fbtn " data-filter="low">Low</button>
+              <button class="fbtn " data-filter="info">Info</button>
+              <button class="fbtn " data-filter="verified">Verified</button>
+              <button class="fbtn " data-filter="needs_manual_review">Manual Review</button>
+              <button class="fbtn " data-filter="false_positive">False Positive</button>
+            </div>
+            <div class="tbl-wrap">
+              <table class="tbl"><thead><tr>
+                <th>Finding</th><th>Severity</th><th>Lifecycle</th><th>Verification</th>
+                <th>Risk Score</th><th>Tool</th><th>Affected Surface</th><th>Confidence</th><th>Action</th>
+              </tr></thead><tbody id="f-body">
+                <tr class="finding-row" data-idx="0" data-severity="high"
+                    data-status="needs_manual_review"
+                    data-search="image-size: jxl and heif parsers allow denial of service through infinite loops not available in assessment npm-audit e017825a35cb56d2 wt-npm-0004">
+                  <td><span class="f-title" title="image-size: JXL and HEIF parsers allow denial of service through infinite loops">image-size: JXL and HEIF parsers allow denial of service through infinite loops</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-NPM-0004</span></td>
+                  <td><span class="chip" style="--c:#F97316">high</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">Needs Manual Review</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">inconclusive</span></td>
+                  <td><span class="mono">8.0</span></td>
+                  <td><span class="mono" style="font-size:11px">npm-audit</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">NOT AVAILABLE IN ASSESSMENT</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="1" data-severity="high"
+                    data-status="needs_manual_review"
+                    data-search="image-size: icns parser allows denial of service through an infinite loop not available in assessment npm-audit 61f88032042bcad7 wt-npm-0002">
+                  <td><span class="f-title" title="image-size: ICNS parser allows denial of service through an infinite loop">image-size: ICNS parser allows denial of service through an infinite loop</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-NPM-0002</span></td>
+                  <td><span class="chip" style="--c:#F97316">high</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">Needs Manual Review</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">inconclusive</span></td>
+                  <td><span class="mono">8.0</span></td>
+                  <td><span class="mono" style="font-size:11px">npm-audit</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">NOT AVAILABLE IN ASSESSMENT</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="2" data-severity="medium"
+                    data-status="needs_manual_review"
+                    data-search="stream-json: pick/ignore/filter/replace filters are o(depthâ²) on nested input â€” small crafted json blocks the event loop for secondsâ†’minutes (dos) not available in assessment npm-audit 20a258352076ab49 wt-npm-0001">
+                  <td><span class="f-title" title="stream-json: pick/ignore/filter/replace filters are O(depthÂ²) on nested input â€” small crafted JSON blocks the event loop for secondsâ†’minutes (DoS)">stream-json: pick/ignore/filter/replace filters are O(depthÂ²) on nested input â€” small crafted JSON blocks the event loop for secondsâ†’minutes (DoS)</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-NPM-0001</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">Needs Manual Review</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">inconclusive</span></td>
+                  <td><span class="mono">5.0</span></td>
+                  <td><span class="mono" style="font-size:11px">npm-audit</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">NOT AVAILABLE IN ASSESSMENT</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="3" data-severity="medium"
+                    data-status="needs_manual_review"
+                    data-search="uuid: missing buffer bounds check in v3/v5/v6 when buf is provided not available in assessment npm-audit ef83b718f01d0de5 wt-npm-0005">
+                  <td><span class="f-title" title="uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided">uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-NPM-0005</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">Needs Manual Review</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">inconclusive</span></td>
+                  <td><span class="mono">5.0</span></td>
+                  <td><span class="mono" style="font-size:11px">npm-audit</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">NOT AVAILABLE IN ASSESSMENT</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="4" data-severity="low"
+                    data-status="verified"
+                    data-search="content-security-policy assessment http://localhost:3000/ security-headers 7a4c7efe12cf7122 wt-hdr-0003">
+                  <td><span class="f-title" title="Content-Security-Policy assessment">Content-Security-Policy assessment</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-HDR-0003</span></td>
+                  <td><span class="chip" style="--c:#0A84FF">low</span></td>
+                  <td><span class="chip" style="--c:#10B981">Verified</span></td>
+                  <td><span class="chip" style="--c:#10B981">confirmed</span></td>
+                  <td><span class="mono">3.0</span></td>
+                  <td><span class="mono" style="font-size:11px">security-headers</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="5" data-severity="low"
+                    data-status="verified"
+                    data-search="x-content-type-options assessment http://localhost:3000/ security-headers 7ab50a2bf81e81f3 wt-hdr-0004">
+                  <td><span class="f-title" title="X-Content-Type-Options assessment">X-Content-Type-Options assessment</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-HDR-0004</span></td>
+                  <td><span class="chip" style="--c:#0A84FF">low</span></td>
+                  <td><span class="chip" style="--c:#10B981">Verified</span></td>
+                  <td><span class="chip" style="--c:#10B981">confirmed</span></td>
+                  <td><span class="mono">3.0</span></td>
+                  <td><span class="mono" style="font-size:11px">security-headers</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="6" data-severity="low"
+                    data-status="verified"
+                    data-search="x-frame-options assessment http://localhost:3000/ security-headers 74798d62160a715b wt-hdr-0001">
+                  <td><span class="f-title" title="X-Frame-Options assessment">X-Frame-Options assessment</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-HDR-0001</span></td>
+                  <td><span class="chip" style="--c:#0A84FF">low</span></td>
+                  <td><span class="chip" style="--c:#10B981">Verified</span></td>
+                  <td><span class="chip" style="--c:#10B981">confirmed</span></td>
+                  <td><span class="mono">3.0</span></td>
+                  <td><span class="mono" style="font-size:11px">security-headers</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="7" data-severity="low"
+                    data-status="verified"
+                    data-search="referrer-policy assessment http://localhost:3000/ security-headers c6f5c360e1f5cacf wt-hdr-0005">
+                  <td><span class="f-title" title="Referrer-Policy assessment">Referrer-Policy assessment</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-HDR-0005</span></td>
+                  <td><span class="chip" style="--c:#0A84FF">low</span></td>
+                  <td><span class="chip" style="--c:#10B981">Verified</span></td>
+                  <td><span class="chip" style="--c:#10B981">confirmed</span></td>
+                  <td><span class="mono">3.0</span></td>
+                  <td><span class="mono" style="font-size:11px">security-headers</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="8" data-severity="low"
+                    data-status="needs_manual_review"
+                    data-search="server-side request forgery: http://localhost:3000/api/mcp-proxy http://localhost:3000/api/mcp-proxy ssrf 6b03541bd03a7d1b wt-ssrf-0001">
+                  <td><span class="f-title" title="Server-side request forgery: http://localhost:3000/api/mcp-proxy">Server-side request forgery: http://localhost:3000/api/mcp-proxy</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-SSRF-0001</span></td>
+                  <td><span class="chip" style="--c:#0A84FF">low</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">Needs Manual Review</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">inconclusive</span></td>
+                  <td><span class="mono">2.4</span></td>
+                  <td><span class="mono" style="font-size:11px">ssrf</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/api/mcp-proxy</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="9" data-severity="low"
+                    data-status="needs_manual_review"
+                    data-search="rate-limit enforcement http://localhost:3000/ rate-limit 4be06482f60ad83a wt-rate-0001">
+                  <td><span class="f-title" title="Rate-limit enforcement">Rate-limit enforcement</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-RATE-0001</span></td>
+                  <td><span class="chip" style="--c:#0A84FF">low</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">Needs Manual Review</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">inconclusive</span></td>
+                  <td><span class="mono">2.0</span></td>
+                  <td><span class="mono" style="font-size:11px">rate-limit</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="10" data-severity="info"
+                    data-status="false_positive"
+                    data-search="vitest: path traversal / arbitrary file read via @vitest/mocker redirect mock not available in assessment npm-audit 99fdd28899fcabcf wt-npm-0003">
+                  <td><span class="f-title" title="Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock">Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-NPM-0003</span></td>
+                  <td><span class="chip" style="--c:#64748B">info</span></td>
+                  <td><span class="chip" style="--c:#64748B">False Positive</span></td>
+                  <td><span class="chip" style="--c:#64748B">not_applicable</span></td>
+                  <td><span class="mono">0.0</span></td>
+                  <td><span class="mono" style="font-size:11px">npm-audit</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">NOT AVAILABLE IN ASSESSMENT</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="11" data-severity="info"
+                    data-status="false_positive"
+                    data-search="strict-transport-security assessment http://localhost:3000/ security-headers 749f2fcf52969d24 wt-hdr-0002">
+                  <td><span class="f-title" title="Strict-Transport-Security assessment">Strict-Transport-Security assessment</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-HDR-0002</span></td>
+                  <td><span class="chip" style="--c:#64748B">info</span></td>
+                  <td><span class="chip" style="--c:#64748B">False Positive</span></td>
+                  <td><span class="chip" style="--c:#64748B">not_applicable</span></td>
+                  <td><span class="mono">0.0</span></td>
+                  <td><span class="mono" style="font-size:11px">security-headers</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="12" data-severity="info"
+                    data-status="false_positive"
+                    data-search="permissions-policy assessment http://localhost:3000/ security-headers c70d2b83a84188f4 wt-hdr-0006">
+                  <td><span class="f-title" title="Permissions-Policy assessment">Permissions-Policy assessment</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-HDR-0006</span></td>
+                  <td><span class="chip" style="--c:#64748B">info</span></td>
+                  <td><span class="chip" style="--c:#64748B">False Positive</span></td>
+                  <td><span class="chip" style="--c:#64748B">refuted</span></td>
+                  <td><span class="mono">0.0</span></td>
+                  <td><span class="mono" style="font-size:11px">security-headers</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="13" data-severity="info"
+                    data-status="false_positive"
+                    data-search="cross-origin resource sharing (cors) policy http://localhost:3000/ cors f6088eafa251abe0 wt-cors-0001">
+                  <td><span class="f-title" title="Cross-origin resource sharing (CORS) policy">Cross-origin resource sharing (CORS) policy</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-CORS-0001</span></td>
+                  <td><span class="chip" style="--c:#64748B">info</span></td>
+                  <td><span class="chip" style="--c:#64748B">False Positive</span></td>
+                  <td><span class="chip" style="--c:#64748B">refuted</span></td>
+                  <td><span class="mono">0.0</span></td>
+                  <td><span class="mono" style="font-size:11px">cors</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="14" data-severity="info"
+                    data-status="needs_manual_review"
+                    data-search="auth/mcp access control: http://localhost:3000/api/mcp http://localhost:3000/api/mcp auth-mcp 4287693df5aa7023 wt-auth-0001">
+                  <td><span class="f-title" title="Auth/MCP access control: http://localhost:3000/api/mcp">Auth/MCP access control: http://localhost:3000/api/mcp</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-AUTH-0001</span></td>
+                  <td><span class="chip" style="--c:#64748B">info</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">Needs Manual Review</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">inconclusive</span></td>
+                  <td><span class="mono">0.0</span></td>
+                  <td><span class="mono" style="font-size:11px">auth-mcp</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/api/mcp</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="15" data-severity="info"
+                    data-status="needs_manual_review"
+                    data-search="auth/mcp access control: http://localhost:3000/api/mcp-proxy http://localhost:3000/api/mcp-proxy auth-mcp 8089670bfe33acd9 wt-auth-0002">
+                  <td><span class="f-title" title="Auth/MCP access control: http://localhost:3000/api/mcp-proxy">Auth/MCP access control: http://localhost:3000/api/mcp-proxy</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-AUTH-0002</span></td>
+                  <td><span class="chip" style="--c:#64748B">info</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">Needs Manual Review</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">inconclusive</span></td>
+                  <td><span class="mono">0.0</span></td>
+                  <td><span class="mono" style="font-size:11px">auth-mcp</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/api/mcp-proxy</span></td>
+                  <td><span class="chip" style="--c:#F59E0B">medium</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+                <tr class="finding-row" data-idx="16" data-severity="info"
+                    data-status="false_positive"
+                    data-search="server-side request forgery: http://localhost:3000/api/rss-proxy http://localhost:3000/api/rss-proxy ssrf a126c5cecc059745 wt-ssrf-0002">
+                  <td><span class="f-title" title="Server-side request forgery: http://localhost:3000/api/rss-proxy">Server-side request forgery: http://localhost:3000/api/rss-proxy</span>
+                    <span class="mono" style="font-size:10px;color:var(--muted)">WT-SSRF-0002</span></td>
+                  <td><span class="chip" style="--c:#64748B">info</span></td>
+                  <td><span class="chip" style="--c:#64748B">False Positive</span></td>
+                  <td><span class="chip" style="--c:#64748B">refuted</span></td>
+                  <td><span class="mono">0.0</span></td>
+                  <td><span class="mono" style="font-size:11px">ssrf</span></td>
+                  <td><span class="mono" style="font-size:11px;color:var(--text-dim)">http://localhost:3000/api/rss-proxy</span></td>
+                  <td><span class="chip" style="--c:#10B981">high</span></td>
+                  <td><button class="btn btn-ghost btn-sm inspect-btn" type="button">Inspect</button></td>
+                </tr>
+              </tbody></table>
+            </div>
+            <div class="empty" id="f-none" style="display:none;margin-top:12px">No findings match the current filter.</div>
+          </div></div>
+
+          <div class="panel inspector" id="inspector">
+            <div class="panel-h"><svg class="wt-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11a6 6 0 0 1 12 0v2M8 13v-2a4 4 0 0 1 8 0v3M10 15v-4a2 2 0 0 1 4 0v5M12 13v6"/></svg><span class="caps">Evidence Inspector</span>
+              <span class="spacer"></span>
+              <button class="btn btn-ghost btn-sm" id="insp-close" type="button" style="display:none"><svg class="wt-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+            <div class="panel-b" id="insp-body">
+              <div class="insp-empty"><svg class="wt-ico" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11a6 6 0 0 1 12 0v2M8 13v-2a4 4 0 0 1 8 0v3M10 15v-4a2 2 0 0 1 4 0v5M12 13v6"/></svg>
+                <p style="margin-top:10px">Select a finding to inspect its evidence, verification result
+                and lifecycle decision. Fields absent from the assessment are shown as
+                "NOT AVAILABLE IN ASSESSMENT" — never fabricated.</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="blk" id="coverage">
+        <div class="blk-h"><svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v2M14 3v2M10 19v2M14 19v2M3 10h2M3 14h2M19 10h2M19 14h2"/></svg><h2>Engine Coverage</h2><span class="spacer"></span>
+          <span class="chip hatch" style="--c:var(--muted)">5 skipped</span></div>
+        <div class="panel"><div class="panel-b">
+          <div class="tbl-wrap"><table class="tbl"><thead><tr>
+            <th>Stage / Tool</th><th>Status</th><th>Findings</th><th>Detail</th>
+          </tr></thead><tbody>
+            <tr>
+              <td><span class="mono">attack-surface</span></td>
+              <td><span class="chip " style="--c:#10B981">executed</span></td>
+              <td><span class="mono">0</span></td>
+              <td class="note" style="max-width:520px">—</td>
+            </tr>
+            <tr>
+              <td><span class="mono">semgrep</span></td>
+              <td><span class="chip hatch" style="--c:#64748B">Skipped</span></td>
+              <td><span class="mono">0</span></td>
+              <td class="note" style="max-width:520px">Semgrep is not installed. Install it with &#39;pip install semgrep&#39; (or &#39;brew install semgrep&#39;), then re-run. See https://semgrep.dev/docs/getting-started/</td>
+            </tr>
+            <tr>
+              <td><span class="mono">gitleaks</span></td>
+              <td><span class="chip hatch" style="--c:#64748B">Skipped</span></td>
+              <td><span class="mono">0</span></td>
+              <td class="note" style="max-width:520px">Gitleaks is not installed. Install a release binary from https://github.com/gitleaks/gitleaks/releases (or &#39;brew install gitleaks&#39;), then re-run. WATCHTOWER does not install it for you.</td>
+            </tr>
+            <tr>
+              <td><span class="mono">osv-scanner</span></td>
+              <td><span class="chip hatch" style="--c:#64748B">Skipped</span></td>
+              <td><span class="mono">0</span></td>
+              <td class="note" style="max-width:520px">OSV-Scanner is not installed. Install a release binary from https://github.com/google/osv-scanner/releases (or &#39;go install github.com/google/osv-scanner/cmd/osv-scanner@latest&#39;), then re-run. WATCHTOWER does not install it for you.</td>
+            </tr>
+            <tr>
+              <td><span class="mono">npm-audit</span></td>
+              <td><span class="chip " style="--c:#10B981">executed</span></td>
+              <td><span class="mono">5</span></td>
+              <td class="note" style="max-width:520px">—</td>
+            </tr>
+            <tr>
+              <td><span class="mono">security-headers</span></td>
+              <td><span class="chip " style="--c:#10B981">executed</span></td>
+              <td><span class="mono">6</span></td>
+              <td class="note" style="max-width:520px">—</td>
+            </tr>
+            <tr>
+              <td><span class="mono">zap</span></td>
+              <td><span class="chip hatch" style="--c:#64748B">Skipped</span></td>
+              <td><span class="mono">0</span></td>
+              <td class="note" style="max-width:520px">OWASP ZAP is not runnable. Install ZAP so &#39;zap-baseline.py&#39; is on PATH (https://www.zaproxy.org/download/), OR start Docker Desktop and pre-pull the image with &#39;docker pull ghcr.io/zaproxy/zaproxy&#39;. WATCHTOWER does not install or pull it for you.</td>
+            </tr>
+            <tr>
+              <td><span class="mono">nuclei</span></td>
+              <td><span class="chip hatch" style="--c:#64748B">Skipped</span></td>
+              <td><span class="mono">0</span></td>
+              <td class="note" style="max-width:520px">Nuclei is not installed. Install a release binary from https://github.com/projectdiscovery/nuclei/releases (or &#39;go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest&#39;), then re-run. WATCHTOWER does not install it for you.</td>
+            </tr>
+            <tr>
+              <td><span class="mono">cors</span></td>
+              <td><span class="chip " style="--c:#10B981">executed</span></td>
+              <td><span class="mono">1</span></td>
+              <td class="note" style="max-width:520px">—</td>
+            </tr>
+            <tr>
+              <td><span class="mono">rate-limit</span></td>
+              <td><span class="chip " style="--c:#10B981">executed</span></td>
+              <td><span class="mono">1</span></td>
+              <td class="note" style="max-width:520px">—</td>
+            </tr>
+            <tr>
+              <td><span class="mono">auth-mcp</span></td>
+              <td><span class="chip " style="--c:#10B981">executed</span></td>
+              <td><span class="mono">2</span></td>
+              <td class="note" style="max-width:520px">—</td>
+            </tr>
+            <tr>
+              <td><span class="mono">ssrf</span></td>
+              <td><span class="chip " style="--c:#10B981">executed</span></td>
+              <td><span class="mono">2</span></td>
+              <td class="note" style="max-width:520px">—</td>
+            </tr>
+          </tbody></table></div>
+          <p class="note" style="margin-top:12px"><svg class="wt-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg> Skipped scanners are not
+          installed on this host. A skipped stage is a coverage gap — never counted as a pass.</p>
+        </div></div>
+      </section>
+
+      <section class="blk" id="limitations">
+        <div class="blk-h"><svg class="wt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg><h2>Assessment Limitations</h2></div>
+        <div class="panel" style="border-left:3px solid var(--warn)"><div class="panel-b">
+          <div class="reasons">
+            <div class="reason"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg><span>5 scanner(s) not installed/skipped: gitleaks, nuclei, osv-scanner, semgrep, zap.</span></div>
+            <div class="reason"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg><span>6 endpoint(s) responded only under the local development runtime; the production/serverless surface was not exercised.</span></div>
+            <div class="reason"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg><span>411 attack-surface endpoint(s) carrying risk tags were not exercised by any probe (static candidates only).</span></div>
+            <div class="reason"><svg class="wt-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg><span>Assessment targeted a LOCAL instance only; no public infrastructure was scanned.</span></div>
+          </div>
+          <div class="taglist" style="margin-top:14px">
+<span class="chip hatch" style="--c:var(--muted)">gitleaks</span><span class="chip hatch" style="--c:var(--muted)">nuclei</span><span class="chip hatch" style="--c:var(--muted)">osv-scanner</span><span class="chip hatch" style="--c:var(--muted)">semgrep</span><span class="chip hatch" style="--c:var(--muted)">zap</span>          </div>
+          <p class="note" style="margin-top:14px">These limitations reduce assessment coverage and are
+          a direct input to the current WARN gate decision. They are surfaced, not hidden.</p>
+        </div></div>
+      </section>
+
+      <section class="blk" id="runs">
+        <div class="g2">
+          <div class="panel"><div class="panel-h"><svg class="wt-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2L4 8M4 4v4h4"/><path d="M12 8v4l3 2"/></svg><span class="caps">Regression comparison</span></div>
+            <div class="panel-b">
+              <div class="empty"><svg class="wt-ico" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2L4 8M4 4v4h4"/><path d="M12 8v4l3 2"/></svg>
+                <p style="margin-top:10px">No baseline available for regression comparison.</p></div>
+              <p class="note" style="margin-top:12px">Reserved for continuous assessment. When a baseline
+              is supplied, this panel consumes <span class="mono">report.diff</span> directly — new,
+              resolved and changed findings are computed by the diff engine, not here.</p>
+            </div>
+          </div>
+          <div class="panel"><div class="panel-h"><svg class="wt-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="caps">Run history</span></div>
+            <div class="panel-b">
+              <div class="empty">Historical run comparison unavailable.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+<script>
+var FINDINGS = [{"fp": "e017825a35cb56d2", "id": "WT-NPM-0004", "title": "image-size: JXL and HEIF parsers allow denial of service through infinite loops", "sev": "high", "status": "needs_manual_review", "result": "inconclusive", "score": 8.0, "score_model": "watchtower-risk-score-v1", "tool": "npm-audit", "surface": "NOT AVAILABLE IN ASSESSMENT", "conf": "medium", "cwe": "CWE-835", "expl": {"detected": "npm-audit reported: npm audit reports package 'image-size' is affected (vulnerable range \u003e=1.2.0 \u003c=2.0.2). Reported by npm audit; kept separate from any OSV finding for the same advisory.", "matters": "A vulnerable dependency is only a risk if the vulnerable code path is reachable from the application. Reachability is analysed, not assumed.", "verification": "dependency-reachability (probe: dependency-reachability) — 'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "result_meaning": "evidence was inconclusive; a human should investigate", "not_tested": "The production/serverless runtime of this endpoint was not exercised; only the local development runtime responded, so the verdict is inconclusive.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Upgrade 'image-size' beyond the vulnerable range (npm/OSV suggests 8.9.36); verify compatibility."}, "rels": [{"rel": "discovered by", "labels": ["npm-audit"]}, {"rel": "tested by", "labels": ["dependency-reachability"]}, {"rel": "affects", "labels": ["other"]}], "rationale": "'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "method": "dependency-reachability", "evidence": {"package": "image-size", "advisory_id": 1239765, "identifiers": ["GHSA-5P2G-FCMC-QVQQ"], "title": "image-size: JXL and HEIF parsers allow denial of service through infinite loops", "url": "https://github.com/advisories/GHSA-5p2g-fcmc-qvqq", "vulnerable_range": "\u003e=1.2.0 \u003c=2.0.2", "severity_source": "npm-advisory", "fix_available": {"name": "deck.gl", "version": "8.9.36", "isSemVerMajor": true}, "fixed_version": "8.9.36", "fingerprint": "e017825a35cb56d2", "dependency": "image-size", "version": "0.7.5", "installed_versions": ["0.7.5", "1.2.1"], "dependency_type": "production", "direct_or_transitive": "transitive", "reachable": "not-imported", "reachability_reason": "'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "present_in_lock": true, "lock_nodes": ["node_modules/image-size", "node_modules/texture-compressor/node_modules/image-size"], "manifest_error": null, "verification_status": "inconclusive", "evidence": "'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "remediation": "Upgrade 'image-size' beyond the vulnerable range (npm/OSV suggests 8.9.36); verify compatibility.", "lifecycle": [{"from": "suspected", "to": "needs_manual_review", "requested": "needs_manual_review", "actor": "dependency-reachability", "applied": true, "rationale": "'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "timestamp": "2026-09-28T11:11:24.163093+00:00"}]}}, {"fp": "61f88032042bcad7", "id": "WT-NPM-0002", "title": "image-size: ICNS parser allows denial of service through an infinite loop", "sev": "high", "status": "needs_manual_review", "result": "inconclusive", "score": 8.0, "score_model": "watchtower-risk-score-v1", "tool": "npm-audit", "surface": "NOT AVAILABLE IN ASSESSMENT", "conf": "medium", "cwe": "CWE-835", "expl": {"detected": "npm-audit reported: npm audit reports package 'image-size' is affected (vulnerable range \u003e=0.6.3 \u003c=2.0.2). Reported by npm audit; kept separate from any OSV finding for the same advisory.", "matters": "A vulnerable dependency is only a risk if the vulnerable code path is reachable from the application. Reachability is analysed, not assumed.", "verification": "dependency-reachability (probe: dependency-reachability) — 'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "result_meaning": "evidence was inconclusive; a human should investigate", "not_tested": "The production/serverless runtime of this endpoint was not exercised; only the local development runtime responded, so the verdict is inconclusive.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Upgrade 'image-size' beyond the vulnerable range (npm/OSV suggests 8.9.36); verify compatibility."}, "rels": [{"rel": "discovered by", "labels": ["npm-audit"]}, {"rel": "tested by", "labels": ["dependency-reachability"]}, {"rel": "affects", "labels": ["other"]}], "rationale": "'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "method": "dependency-reachability", "evidence": {"package": "image-size", "advisory_id": 1239766, "identifiers": ["GHSA-W3RX-R6R6-PGPR"], "title": "image-size: ICNS parser allows denial of service through an infinite loop", "url": "https://github.com/advisories/GHSA-w3rx-r6r6-pgpr", "vulnerable_range": "\u003e=0.6.3 \u003c=2.0.2", "severity_source": "npm-advisory", "fix_available": {"name": "deck.gl", "version": "8.9.36", "isSemVerMajor": true}, "fixed_version": "8.9.36", "fingerprint": "61f88032042bcad7", "dependency": "image-size", "version": "0.7.5", "installed_versions": ["0.7.5", "1.2.1"], "dependency_type": "production", "direct_or_transitive": "transitive", "reachable": "not-imported", "reachability_reason": "'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "present_in_lock": true, "lock_nodes": ["node_modules/image-size", "node_modules/texture-compressor/node_modules/image-size"], "manifest_error": null, "verification_status": "inconclusive", "evidence": "'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "remediation": "Upgrade 'image-size' beyond the vulnerable range (npm/OSV suggests 8.9.36); verify compatibility.", "lifecycle": [{"from": "suspected", "to": "needs_manual_review", "requested": "needs_manual_review", "actor": "dependency-reachability", "applied": true, "rationale": "'image-size' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/image-size, node_modules/texture-compressor/node_modules/image-size). Exploitability depends on whether a parent package forwards untrusted input to it.", "timestamp": "2026-09-28T11:11:25.419894+00:00"}]}}, {"fp": "20a258352076ab49", "id": "WT-NPM-0001", "title": "stream-json: pick/ignore/filter/replace filters are O(depthÂ²) on nested input â€” small crafted JSON blocks the event loop for secondsâ†’minutes (DoS)", "sev": "medium", "status": "needs_manual_review", "result": "inconclusive", "score": 5.0, "score_model": "watchtower-risk-score-v1", "tool": "npm-audit", "surface": "NOT AVAILABLE IN ASSESSMENT", "conf": "medium", "cwe": "CWE-407", "expl": {"detected": "npm-audit reported: npm audit reports package 'stream-json' is affected (vulnerable range \u003c=3.4.0). Reported by npm audit; kept separate from any OSV finding for the same advisory.", "matters": "A vulnerable dependency is only a risk if the vulnerable code path is reachable from the application. Reachability is analysed, not assumed.", "verification": "dependency-reachability (probe: dependency-reachability) — 'stream-json' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/stream-json). Exploitability depends on whether a parent package forwards untrusted input to it.", "result_meaning": "evidence was inconclusive; a human should investigate", "not_tested": "The production/serverless runtime of this endpoint was not exercised; only the local development runtime responded, so the verdict is inconclusive.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Upgrade 'stream-json' beyond the vulnerable range (npm/OSV suggests 5.114.1); verify compatibility."}, "rels": [{"rel": "discovered by", "labels": ["npm-audit"]}, {"rel": "tested by", "labels": ["dependency-reachability"]}, {"rel": "affects", "labels": ["other"]}], "rationale": "'stream-json' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/stream-json). Exploitability depends on whether a parent package forwards untrusted input to it.", "method": "dependency-reachability", "evidence": {"package": "stream-json", "advisory_id": 1164823, "identifiers": ["GHSA-528H-PC64-C93X"], "title": "stream-json: pick/ignore/filter/replace filters are O(depthÂ²) on nested input â€” small crafted JSON blocks the event loop for secondsâ†’minutes (DoS)", "url": "https://github.com/advisories/GHSA-528h-pc64-c93x", "vulnerable_range": "\u003c=3.4.0", "severity_source": "npm-advisory", "fix_available": {"name": "@clerk/clerk-js", "version": "5.114.1", "isSemVerMajor": true}, "fixed_version": "5.114.1", "fingerprint": "20a258352076ab49", "dependency": "stream-json", "version": "1.9.1", "installed_versions": ["1.9.1"], "dependency_type": "production", "direct_or_transitive": "transitive", "reachable": "not-imported", "reachability_reason": "'stream-json' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/stream-json). Exploitability depends on whether a parent package forwards untrusted input to it.", "present_in_lock": true, "lock_nodes": ["node_modules/stream-json"], "manifest_error": null, "verification_status": "inconclusive", "evidence": "'stream-json' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/stream-json). Exploitability depends on whether a parent package forwards untrusted input to it.", "remediation": "Upgrade 'stream-json' beyond the vulnerable range (npm/OSV suggests 5.114.1); verify compatibility.", "lifecycle": [{"from": "suspected", "to": "needs_manual_review", "requested": "needs_manual_review", "actor": "dependency-reachability", "applied": true, "rationale": "'stream-json' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/stream-json). Exploitability depends on whether a parent package forwards untrusted input to it.", "timestamp": "2026-09-28T11:11:25.827223+00:00"}]}}, {"fp": "ef83b718f01d0de5", "id": "WT-NPM-0005", "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided", "sev": "medium", "status": "needs_manual_review", "result": "inconclusive", "score": 5.0, "score_model": "watchtower-risk-score-v1", "tool": "npm-audit", "surface": "NOT AVAILABLE IN ASSESSMENT", "conf": "medium", "cwe": "CWE-787", "expl": {"detected": "npm-audit reported: npm audit reports package 'uuid' is affected (vulnerable range \u003c11.1.1). Reported by npm audit; kept separate from any OSV finding for the same advisory.", "matters": "A vulnerable dependency is only a risk if the vulnerable code path is reachable from the application. Reachability is analysed, not assumed.", "verification": "dependency-reachability (probe: dependency-reachability) — 'uuid' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/rpc-websockets/node_modules/uuid, node_modules/uuid). Exploitability depends on whether a parent package forwards untrusted input to it.", "result_meaning": "evidence was inconclusive; a human should investigate", "not_tested": "The production/serverless runtime of this endpoint was not exercised; only the local development runtime responded, so the verdict is inconclusive.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Upgrade 'uuid' beyond the vulnerable range (npm/OSV suggests 3.4.0); verify compatibility."}, "rels": [{"rel": "discovered by", "labels": ["npm-audit"]}, {"rel": "tested by", "labels": ["dependency-reachability"]}, {"rel": "affects", "labels": ["other"]}], "rationale": "'uuid' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/rpc-websockets/node_modules/uuid, node_modules/uuid). Exploitability depends on whether a parent package forwards untrusted input to it.", "method": "dependency-reachability", "evidence": {"package": "uuid", "advisory_id": 1119441, "identifiers": ["GHSA-W5HQ-G745-H8PQ"], "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided", "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq", "vulnerable_range": "\u003c11.1.1", "severity_source": "npm-advisory", "fix_available": {"name": "exceljs", "version": "3.4.0", "isSemVerMajor": true}, "fixed_version": "3.4.0", "fingerprint": "ef83b718f01d0de5", "dependency": "uuid", "version": "11.1.1", "installed_versions": ["11.1.1", "8.3.2"], "dependency_type": "production", "direct_or_transitive": "transitive", "reachable": "not-imported", "reachability_reason": "'uuid' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/rpc-websockets/node_modules/uuid, node_modules/uuid). Exploitability depends on whether a parent package forwards untrusted input to it.", "present_in_lock": true, "lock_nodes": ["node_modules/rpc-websockets/node_modules/uuid", "node_modules/uuid"], "manifest_error": null, "verification_status": "inconclusive", "evidence": "'uuid' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/rpc-websockets/node_modules/uuid, node_modules/uuid). Exploitability depends on whether a parent package forwards untrusted input to it.", "remediation": "Upgrade 'uuid' beyond the vulnerable range (npm/OSV suggests 3.4.0); verify compatibility.", "lifecycle": [{"from": "suspected", "to": "needs_manual_review", "requested": "needs_manual_review", "actor": "dependency-reachability", "applied": true, "rationale": "'uuid' is a production transitive dependency but is not imported directly by scanned application source; it is present transitively (node_modules/rpc-websockets/node_modules/uuid, node_modules/uuid). Exploitability depends on whether a parent package forwards untrusted input to it.", "timestamp": "2026-09-28T11:11:26.209844+00:00"}]}}, {"fp": "7a4c7efe12cf7122", "id": "WT-HDR-0003", "title": "Content-Security-Policy assessment", "sev": "low", "status": "verified", "result": "confirmed", "score": 3.0, "score_model": "watchtower-risk-score-v1", "tool": "security-headers", "surface": "http://localhost:3000/", "conf": "high", "cwe": null, "expl": {"detected": "security-headers reported: Security-header observation for Content-Security-Policy on http://localhost:3000/. The presence and value are recorded from a live HTTP response; the verdict is assigned by the security-header verifier, not by this observation alone.", "matters": "Security response headers are a defence-in-depth control. A missing header is a hardening gap, not a demonstrated exploit.", "verification": "active_probe (probe: security-headers) — Content-Security-Policy is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "result_meaning": "a probe demonstrated the property against the live target", "not_tested": "The security property was demonstrated; the downstream exploit impact and affected data were not further enumerated.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Set the Content-Security-Policy response header. Expected: a policy restricting sources (e.g. default-src 'self') to limit XSS/injection"}, "rels": [{"rel": "discovered by", "labels": ["security-headers"]}, {"rel": "tested by", "labels": ["security-headers"]}, {"rel": "verified by", "labels": ["security-headers"]}, {"rel": "supported by", "labels": ["COR-0001"]}, {"rel": "affects", "labels": ["ui"]}], "rationale": "Content-Security-Policy is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "method": "active_probe", "evidence": {"header": "Content-Security-Policy", "present": false, "value": null, "observed_value": null, "expected_property": "a policy restricting sources (e.g. default-src 'self') to limit XSS/injection", "url_tested": "http://localhost:3000/", "status_code": 200, "http_status": 200, "response_time_ms": 2071, "scheme": "http", "host": "localhost", "fingerprint": "7a4c7efe12cf7122", "correlation_group": "COR-0001", "correlated_with": ["WT-HDR-0002", "WT-HDR-0004", "WT-HDR-0001", "WT-HDR-0005", "WT-HDR-0006", "WT-CORS-0001", "WT-RATE-0001"], "correlation_keys": ["endpoint:http://localhost:3000"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 3 independent tools (cors, rate-limit, security-headers) sharing endpoint:http://localhost:3000. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285083+00:00"}, {"from": "correlated", "to": "verified", "requested": "verified", "actor": "security-header", "applied": true, "rationale": "Content-Security-Policy is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "timestamp": "2026-09-28T11:11:26.209866+00:00"}], "verification_status": "confirmed", "evidence": "Content-Security-Policy is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "remediation": "Set the Content-Security-Policy response header. Expected: a policy restricting sources (e.g. default-src 'self') to limit XSS/injection"}}, {"fp": "7ab50a2bf81e81f3", "id": "WT-HDR-0004", "title": "X-Content-Type-Options assessment", "sev": "low", "status": "verified", "result": "confirmed", "score": 3.0, "score_model": "watchtower-risk-score-v1", "tool": "security-headers", "surface": "http://localhost:3000/", "conf": "high", "cwe": null, "expl": {"detected": "security-headers reported: Security-header observation for X-Content-Type-Options on http://localhost:3000/. The presence and value are recorded from a live HTTP response; the verdict is assigned by the security-header verifier, not by this observation alone.", "matters": "Security response headers are a defence-in-depth control. A missing header is a hardening gap, not a demonstrated exploit.", "verification": "active_probe (probe: security-headers) — X-Content-Type-Options is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "result_meaning": "a probe demonstrated the property against the live target", "not_tested": "The security property was demonstrated; the downstream exploit impact and affected data were not further enumerated.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Set the X-Content-Type-Options response header. Expected: nosniff, to stop MIME-type sniffing"}, "rels": [{"rel": "discovered by", "labels": ["security-headers"]}, {"rel": "tested by", "labels": ["security-headers"]}, {"rel": "verified by", "labels": ["security-headers"]}, {"rel": "supported by", "labels": ["COR-0001"]}, {"rel": "affects", "labels": ["ui"]}], "rationale": "X-Content-Type-Options is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "method": "active_probe", "evidence": {"header": "X-Content-Type-Options", "present": false, "value": null, "observed_value": null, "expected_property": "nosniff, to stop MIME-type sniffing", "url_tested": "http://localhost:3000/", "status_code": 200, "http_status": 200, "response_time_ms": 2071, "scheme": "http", "host": "localhost", "fingerprint": "7ab50a2bf81e81f3", "correlation_group": "COR-0001", "correlated_with": ["WT-HDR-0003", "WT-HDR-0002", "WT-HDR-0001", "WT-HDR-0005", "WT-HDR-0006", "WT-CORS-0001", "WT-RATE-0001"], "correlation_keys": ["endpoint:http://localhost:3000"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 3 independent tools (cors, rate-limit, security-headers) sharing endpoint:http://localhost:3000. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285098+00:00"}, {"from": "correlated", "to": "verified", "requested": "verified", "actor": "security-header", "applied": true, "rationale": "X-Content-Type-Options is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "timestamp": "2026-09-28T11:11:26.209888+00:00"}], "verification_status": "confirmed", "evidence": "X-Content-Type-Options is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "remediation": "Set the X-Content-Type-Options response header. Expected: nosniff, to stop MIME-type sniffing"}}, {"fp": "74798d62160a715b", "id": "WT-HDR-0001", "title": "X-Frame-Options assessment", "sev": "low", "status": "verified", "result": "confirmed", "score": 3.0, "score_model": "watchtower-risk-score-v1", "tool": "security-headers", "surface": "http://localhost:3000/", "conf": "high", "cwe": null, "expl": {"detected": "security-headers reported: Security-header observation for X-Frame-Options on http://localhost:3000/. The presence and value are recorded from a live HTTP response; the verdict is assigned by the security-header verifier, not by this observation alone.", "matters": "Security response headers are a defence-in-depth control. A missing header is a hardening gap, not a demonstrated exploit.", "verification": "active_probe (probe: security-headers) — X-Frame-Options is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "result_meaning": "a probe demonstrated the property against the live target", "not_tested": "The security property was demonstrated; the downstream exploit impact and affected data were not further enumerated.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Set the X-Frame-Options response header. Expected: DENY or SAMEORIGIN, to prevent clickjacking"}, "rels": [{"rel": "discovered by", "labels": ["security-headers"]}, {"rel": "tested by", "labels": ["security-headers"]}, {"rel": "verified by", "labels": ["security-headers"]}, {"rel": "supported by", "labels": ["COR-0001"]}, {"rel": "affects", "labels": ["ui"]}], "rationale": "X-Frame-Options is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "method": "active_probe", "evidence": {"header": "X-Frame-Options", "present": false, "value": null, "observed_value": null, "expected_property": "DENY or SAMEORIGIN, to prevent clickjacking", "url_tested": "http://localhost:3000/", "status_code": 200, "http_status": 200, "response_time_ms": 2071, "scheme": "http", "host": "localhost", "fingerprint": "74798d62160a715b", "correlation_group": "COR-0001", "correlated_with": ["WT-HDR-0003", "WT-HDR-0002", "WT-HDR-0004", "WT-HDR-0005", "WT-HDR-0006", "WT-CORS-0001", "WT-RATE-0001"], "correlation_keys": ["endpoint:http://localhost:3000"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 3 independent tools (cors, rate-limit, security-headers) sharing endpoint:http://localhost:3000. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285102+00:00"}, {"from": "correlated", "to": "verified", "requested": "verified", "actor": "security-header", "applied": true, "rationale": "X-Frame-Options is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "timestamp": "2026-09-28T11:11:26.209895+00:00"}], "verification_status": "confirmed", "evidence": "X-Frame-Options is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "remediation": "Set the X-Frame-Options response header. Expected: DENY or SAMEORIGIN, to prevent clickjacking"}}, {"fp": "c6f5c360e1f5cacf", "id": "WT-HDR-0005", "title": "Referrer-Policy assessment", "sev": "low", "status": "verified", "result": "confirmed", "score": 3.0, "score_model": "watchtower-risk-score-v1", "tool": "security-headers", "surface": "http://localhost:3000/", "conf": "high", "cwe": null, "expl": {"detected": "security-headers reported: Security-header observation for Referrer-Policy on http://localhost:3000/. The presence and value are recorded from a live HTTP response; the verdict is assigned by the security-header verifier, not by this observation alone.", "matters": "Security response headers are a defence-in-depth control. A missing header is a hardening gap, not a demonstrated exploit.", "verification": "active_probe (probe: security-headers) — Referrer-Policy is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "result_meaning": "a probe demonstrated the property against the live target", "not_tested": "The security property was demonstrated; the downstream exploit impact and affected data were not further enumerated.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Set the Referrer-Policy response header. Expected: a privacy-preserving policy (e.g. no-referrer or strict-origin-when-cross-origin)"}, "rels": [{"rel": "discovered by", "labels": ["security-headers"]}, {"rel": "tested by", "labels": ["security-headers"]}, {"rel": "verified by", "labels": ["security-headers"]}, {"rel": "supported by", "labels": ["COR-0001"]}, {"rel": "affects", "labels": ["ui"]}], "rationale": "Referrer-Policy is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "method": "active_probe", "evidence": {"header": "Referrer-Policy", "present": false, "value": null, "observed_value": null, "expected_property": "a privacy-preserving policy (e.g. no-referrer or strict-origin-when-cross-origin)", "url_tested": "http://localhost:3000/", "status_code": 200, "http_status": 200, "response_time_ms": 2071, "scheme": "http", "host": "localhost", "fingerprint": "c6f5c360e1f5cacf", "correlation_group": "COR-0001", "correlated_with": ["WT-HDR-0003", "WT-HDR-0002", "WT-HDR-0004", "WT-HDR-0001", "WT-HDR-0006", "WT-CORS-0001", "WT-RATE-0001"], "correlation_keys": ["endpoint:http://localhost:3000"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 3 independent tools (cors, rate-limit, security-headers) sharing endpoint:http://localhost:3000. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285106+00:00"}, {"from": "correlated", "to": "verified", "requested": "verified", "actor": "security-header", "applied": true, "rationale": "Referrer-Policy is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "timestamp": "2026-09-28T11:11:26.209901+00:00"}], "verification_status": "confirmed", "evidence": "Referrer-Policy is absent from the response on http://localhost:3000/ (HTTP 200); missing-header gap confirmed by probe.", "remediation": "Set the Referrer-Policy response header. Expected: a privacy-preserving policy (e.g. no-referrer or strict-origin-when-cross-origin)"}}, {"fp": "6b03541bd03a7d1b", "id": "WT-SSRF-0001", "title": "Server-side request forgery: http://localhost:3000/api/mcp-proxy", "sev": "low", "status": "needs_manual_review", "result": "inconclusive", "score": 2.4, "score_model": "watchtower-risk-score-v1", "tool": "ssrf", "surface": "http://localhost:3000/api/mcp-proxy", "conf": "medium", "cwe": "CWE-918", "expl": {"detected": "ssrf reported: Active SSRF probe fed a loopback canary URL (http://127.0.0.1:9001) to http://localhost:3000/api/mcp-proxy via url, target. SSRF is confirmed only if the canary actually received a request carrying our token; a URL echoed in a client response proves nothing.", "matters": "A server-side request forgery would let a caller pivot to internal targets. WATCHTOWER tests this with a loopback-only canary and confirms nothing without it.", "verification": "active_probe (probe: ssrf-canary) — http://localhost:3000/api/mcp-proxy accepted the input (HTTP [200]) but the canary was not contacted. No server-side fetch of our URL was observed; a client-side echo would not prove SSRF, and a single controlled attempt cannot rule it out. Manual review required.", "result_meaning": "evidence was inconclusive; a human should investigate", "not_tested": "The probe ran but could not reach a definitive verdict; the property was neither demonstrated nor ruled out.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Manually review whether this endpoint performs a server-side fetch and whether outbound destinations are validated."}, "rels": [{"rel": "discovered by", "labels": ["ssrf"]}, {"rel": "tested by", "labels": ["ssrf-canary"]}, {"rel": "supported by", "labels": ["COR-0002"]}, {"rel": "related to", "labels": ["/api/mcp-proxy"]}, {"rel": "affects", "labels": ["mcp-proxy"]}], "rationale": "http://localhost:3000/api/mcp-proxy accepted the input (HTTP [200]) but the canary was not contacted. No server-side fetch of our URL was observed; a client-side echo would not prove SSRF, and a single controlled attempt cannot rule it out. Manual review required.", "method": "active_probe", "evidence": {"endpoint": "http://localhost:3000/api/mcp-proxy", "method": "GET", "params_tested": ["url", "target"], "canary_base": "http://127.0.0.1:9001", "canary_token": "WT-SSRF-e1b13a7a9a0c606b", "canary_received": false, "triggering_param": null, "canary_request_method": null, "canary_headers": null, "response_status_by_param": {"url": 200, "target": 200}, "error": null, "timestamp": "2026-09-28T11:11:14.691169+00:00", "refused": false, "canary_bound": true, "fingerprint": "6b03541bd03a7d1b", "correlation_group": "COR-0002", "correlated_with": ["WT-AUTH-0002"], "correlation_keys": ["endpoint:http://localhost:3000/api/mcp-proxy"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 2 independent tools (auth-mcp, ssrf) sharing endpoint:http://localhost:3000/api/mcp-proxy. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285132+00:00"}, {"from": "correlated", "to": "needs_manual_review", "requested": "needs_manual_review", "actor": "ssrf-canary", "applied": true, "rationale": "http://localhost:3000/api/mcp-proxy accepted the input (HTTP [200]) but the canary was not contacted. No server-side fetch of our URL was observed; a client-side echo would not prove SSRF, and a single controlled attempt cannot rule it out. Manual review required.", "timestamp": "2026-09-28T11:11:26.209991+00:00"}], "verification_status": "inconclusive", "evidence": "http://localhost:3000/api/mcp-proxy accepted the input (HTTP [200]) but the canary was not contacted. No server-side fetch of our URL was observed; a client-side echo would not prove SSRF, and a single controlled attempt cannot rule it out. Manual review required.", "remediation": "Manually review whether this endpoint performs a server-side fetch and whether outbound destinations are validated."}}, {"fp": "4be06482f60ad83a", "id": "WT-RATE-0001", "title": "Rate-limit enforcement", "sev": "low", "status": "needs_manual_review", "result": "inconclusive", "score": 2.0, "score_model": "watchtower-risk-score-v1", "tool": "rate-limit", "surface": "http://localhost:3000/", "conf": "medium", "cwe": "CWE-799", "expl": {"detected": "rate-limit reported: Bounded rate-limit enforcement probe sent 10 paced request(s) to http://localhost:3000/ and inspected for HTTP 429 / rate-limit headers. This is an enforcement check, never a stress test; the verdict is assigned by the verifier.", "matters": "Absent rate limiting can enable abuse or brute force. WATCHTOWER only sends a bounded burst and never attempts a denial-of-service.", "verification": "active_probe (probe: rate-limit) — No throttling signal (no 429, no rate-limit headers) appeared in 10 bounded, non-abusive requests. This is NOT proof that rate limiting is absent — demonstrating absence would require prohibited stress testing. Manual review required.", "result_meaning": "evidence was inconclusive; a human should investigate", "not_tested": "The probe ran but could not reach a definitive verdict; the property was neither demonstrated nor ruled out.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "If this endpoint is sensitive, confirm a rate limiter (e.g. Upstash/Redis token bucket) is applied; verify with a controlled load test in a safe environment."}, "rels": [{"rel": "discovered by", "labels": ["rate-limit"]}, {"rel": "tested by", "labels": ["rate-limit"]}, {"rel": "supported by", "labels": ["COR-0001"]}, {"rel": "affects", "labels": ["ui"]}], "rationale": "No throttling signal (no 429, no rate-limit headers) appeared in 10 bounded, non-abusive requests. This is NOT proof that rate limiting is absent — demonstrating absence would require prohibited stress testing. Manual review required.", "method": "active_probe", "evidence": {"url": "http://localhost:3000/", "request_count": 10, "refused": false, "reachable": true, "statuses": [200, 200, 200, 200, 200, 200, 200, 200, 200, 200], "rate_limit_headers": {}, "retry_after": null, "saw_429": false, "timing_summary": {"min_ms": 2029, "max_ms": 2066, "avg_ms": 2053.8}, "probe_error": null, "timestamp": "2026-09-28T11:10:29.415947+00:00", "fingerprint": "4be06482f60ad83a", "correlation_group": "COR-0001", "correlated_with": ["WT-HDR-0003", "WT-HDR-0002", "WT-HDR-0004", "WT-HDR-0001", "WT-HDR-0005", "WT-HDR-0006", "WT-CORS-0001"], "correlation_keys": ["endpoint:http://localhost:3000"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 3 independent tools (cors, rate-limit, security-headers) sharing endpoint:http://localhost:3000. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285117+00:00"}, {"from": "correlated", "to": "needs_manual_review", "requested": "needs_manual_review", "actor": "rate-limit", "applied": true, "rationale": "No throttling signal (no 429, no rate-limit headers) appeared in 10 bounded, non-abusive requests. This is NOT proof that rate limiting is absent — demonstrating absence would require prohibited stress testing. Manual review required.", "timestamp": "2026-09-28T11:11:26.209940+00:00"}], "timing": {"min_ms": 2029, "max_ms": 2066, "avg_ms": 2053.8}, "verification_status": "inconclusive", "evidence": "No throttling signal (no 429, no rate-limit headers) appeared in 10 bounded, non-abusive requests. This is NOT proof that rate limiting is absent — demonstrating absence would require prohibited stress testing. Manual review required.", "remediation": "If this endpoint is sensitive, confirm a rate limiter (e.g. Upstash/Redis token bucket) is applied; verify with a controlled load test in a safe environment."}}, {"fp": "99fdd28899fcabcf", "id": "WT-NPM-0003", "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock", "sev": "info", "status": "false_positive", "result": "not_applicable", "score": 0.0, "score_model": "watchtower-risk-score-v1", "tool": "npm-audit", "surface": "NOT AVAILABLE IN ASSESSMENT", "conf": "high", "cwe": "CWE-22", "expl": {"detected": "npm-audit reported: npm audit reports package '@vitest/mocker' is affected (vulnerable range \u003e=2.1.0 \u003c4.1.11). Reported by npm audit; kept separate from any OSV finding for the same advisory.", "matters": "A vulnerable dependency is only a risk if the vulnerable code path is reachable from the application. Reachability is analysed, not assumed.", "verification": "dependency-reachability (probe: dependency-reachability) — '@vitest/mocker' is a development-only dependency (package-lock dev:true) via node_modules/@vitest/mocker; it is not part of the production runtime by default. Scoped out of this production-target assessment; a development/CI risk may remain and is disclosed here.", "result_meaning": "evidence disproved the issue or ruled it not applicable", "not_tested": "The issue was ruled out under the tested configuration; no further paths were probed.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Track the upstream fix for '@vitest/mocker'; no fixed version was reported by the tool."}, "rels": [{"rel": "discovered by", "labels": ["npm-audit"]}, {"rel": "tested by", "labels": ["dependency-reachability"]}, {"rel": "verified by", "labels": ["dependency-reachability"]}, {"rel": "affects", "labels": ["other"]}], "rationale": "'@vitest/mocker' is a development-only dependency (package-lock dev:true) via node_modules/@vitest/mocker; it is not part of the production runtime by default. Scoped out of this production-target assessment; a development/CI risk may remain and is disclosed here.", "method": "dependency-reachability", "evidence": {"package": "@vitest/mocker", "advisory_id": 1193684, "identifiers": ["GHSA-82FW-GWWQ-J7X9"], "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock", "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9", "vulnerable_range": "\u003e=2.1.0 \u003c4.1.11", "severity_source": "npm-advisory", "fix_available": true, "fixed_version": null, "fingerprint": "99fdd28899fcabcf", "dependency": "@vitest/mocker", "version": "4.1.1", "installed_versions": ["4.1.1"], "dependency_type": "development", "direct_or_transitive": "transitive", "reachable": "not-applicable", "reachability_reason": "'@vitest/mocker' is a development-only dependency (package-lock dev:true) via node_modules/@vitest/mocker; it is not part of the production runtime by default.", "present_in_lock": true, "lock_nodes": ["node_modules/@vitest/mocker"], "manifest_error": null, "verification_status": "not_applicable", "evidence": "'@vitest/mocker' is a development-only dependency (package-lock dev:true) via node_modules/@vitest/mocker; it is not part of the production runtime by default. Scoped out of this production-target assessment; a development/CI risk may remain and is disclosed here.", "remediation": "Track the upstream fix for '@vitest/mocker'; no fixed version was reported by the tool.", "lifecycle": [{"from": "suspected", "to": "false_positive", "requested": "false_positive", "actor": "dependency-reachability", "applied": true, "rationale": "'@vitest/mocker' is a development-only dependency (package-lock dev:true) via node_modules/@vitest/mocker; it is not part of the production runtime by default. Scoped out of this production-target assessment; a development/CI risk may remain and is disclosed here.", "timestamp": "2026-09-28T11:11:22.290486+00:00"}]}}, {"fp": "749f2fcf52969d24", "id": "WT-HDR-0002", "title": "Strict-Transport-Security assessment", "sev": "info", "status": "false_positive", "result": "not_applicable", "score": 0.0, "score_model": "watchtower-risk-score-v1", "tool": "security-headers", "surface": "http://localhost:3000/", "conf": "high", "cwe": null, "expl": {"detected": "security-headers reported: Security-header observation for Strict-Transport-Security on http://localhost:3000/. The presence and value are recorded from a live HTTP response; the verdict is assigned by the security-header verifier, not by this observation alone.", "matters": "Security response headers are a defence-in-depth control. A missing header is a hardening gap, not a demonstrated exploit.", "verification": "active_probe (probe: security-headers) — Strict-Transport-Security is absent, but the target is plain HTTP on a loopback host (localhost); HSTS cannot apply, so its absence is not a weakness here.", "result_meaning": "evidence disproved the issue or ruled it not applicable", "not_tested": "The issue was ruled out under the tested configuration; no further paths were probed.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Enforce HSTS in production over HTTPS; not applicable on local HTTP."}, "rels": [{"rel": "discovered by", "labels": ["security-headers"]}, {"rel": "tested by", "labels": ["security-headers"]}, {"rel": "verified by", "labels": ["security-headers"]}, {"rel": "supported by", "labels": ["COR-0001"]}, {"rel": "affects", "labels": ["ui"]}], "rationale": "Strict-Transport-Security is absent, but the target is plain HTTP on a loopback host (localhost); HSTS cannot apply, so its absence is not a weakness here.", "method": "active_probe", "evidence": {"header": "Strict-Transport-Security", "present": false, "value": null, "observed_value": null, "expected_property": "max-age enforcing HTTPS for the domain (applies to HTTPS deployments)", "url_tested": "http://localhost:3000/", "status_code": 200, "http_status": 200, "response_time_ms": 2071, "scheme": "http", "host": "localhost", "fingerprint": "749f2fcf52969d24", "correlation_group": "COR-0001", "correlated_with": ["WT-HDR-0003", "WT-HDR-0004", "WT-HDR-0001", "WT-HDR-0005", "WT-HDR-0006", "WT-CORS-0001", "WT-RATE-0001"], "correlation_keys": ["endpoint:http://localhost:3000"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 3 independent tools (cors, rate-limit, security-headers) sharing endpoint:http://localhost:3000. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285092+00:00"}, {"from": "correlated", "to": "false_positive", "requested": "false_positive", "actor": "security-header", "applied": true, "rationale": "Strict-Transport-Security is absent, but the target is plain HTTP on a loopback host (localhost); HSTS cannot apply, so its absence is not a weakness here.", "timestamp": "2026-09-28T11:11:26.209880+00:00"}], "verification_status": "not_applicable", "evidence": "Strict-Transport-Security is absent, but the target is plain HTTP on a loopback host (localhost); HSTS cannot apply, so its absence is not a weakness here.", "remediation": "Enforce HSTS in production over HTTPS; not applicable on local HTTP."}}, {"fp": "c70d2b83a84188f4", "id": "WT-HDR-0006", "title": "Permissions-Policy assessment", "sev": "info", "status": "false_positive", "result": "refuted", "score": 0.0, "score_model": "watchtower-risk-score-v1", "tool": "security-headers", "surface": "http://localhost:3000/", "conf": "high", "cwe": null, "expl": {"detected": "security-headers reported: Security-header observation for Permissions-Policy on http://localhost:3000/. The presence and value are recorded from a live HTTP response; the verdict is assigned by the security-header verifier, not by this observation alone.", "matters": "Security response headers are a defence-in-depth control. A missing header is a hardening gap, not a demonstrated exploit.", "verification": "active_probe (probe: security-headers) — Permissions-Policy is present on http://localhost:3000/ (HTTP 200); the missing-header concern is refuted by the live response.", "result_meaning": "evidence disproved the issue or ruled it not applicable", "not_tested": "The issue was ruled out under the tested configuration; no further paths were probed.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Present. Review the policy value for strictness in a later phase."}, "rels": [{"rel": "discovered by", "labels": ["security-headers"]}, {"rel": "tested by", "labels": ["security-headers"]}, {"rel": "verified by", "labels": ["security-headers"]}, {"rel": "supported by", "labels": ["COR-0001"]}, {"rel": "affects", "labels": ["ui"]}], "rationale": "Permissions-Policy is present on http://localhost:3000/ (HTTP 200); the missing-header concern is refuted by the live response.", "method": "active_probe", "evidence": {"header": "Permissions-Policy", "present": true, "value": "tools=(self)", "observed_value": "tools=(self)", "expected_property": "an allow-list restricting powerful browser features", "url_tested": "http://localhost:3000/", "status_code": 200, "http_status": 200, "response_time_ms": 2071, "scheme": "http", "host": "localhost", "fingerprint": "c70d2b83a84188f4", "correlation_group": "COR-0001", "correlated_with": ["WT-HDR-0003", "WT-HDR-0002", "WT-HDR-0004", "WT-HDR-0001", "WT-HDR-0005", "WT-CORS-0001", "WT-RATE-0001"], "correlation_keys": ["endpoint:http://localhost:3000"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 3 independent tools (cors, rate-limit, security-headers) sharing endpoint:http://localhost:3000. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285109+00:00"}, {"from": "correlated", "to": "false_positive", "requested": "false_positive", "actor": "security-header", "applied": true, "rationale": "Permissions-Policy is present on http://localhost:3000/ (HTTP 200); the missing-header concern is refuted by the live response.", "timestamp": "2026-09-28T11:11:26.209909+00:00"}], "verification_status": "refuted", "evidence": "Permissions-Policy is present on http://localhost:3000/ (HTTP 200); the missing-header concern is refuted by the live response.", "remediation": "Present. Review the policy value for strictness in a later phase."}}, {"fp": "f6088eafa251abe0", "id": "WT-CORS-0001", "title": "Cross-origin resource sharing (CORS) policy", "sev": "info", "status": "false_positive", "result": "refuted", "score": 0.0, "score_model": "watchtower-risk-score-v1", "tool": "cors", "surface": "http://localhost:3000/", "conf": "high", "cwe": "CWE-942", "expl": {"detected": "cors reported: Active CORS probe sent the hostile Origin https://evil.example (and an OPTIONS preflight) to http://localhost:3000/. The verdict is assigned by the CORS verifier from the observed Access-Control-Allow-Origin/-Credentials headers, not from this observation.", "matters": "A permissive cross-origin policy can let a hostile site read authenticated responses. This matters only if the policy actually reflects hostile origins.", "verification": "active_probe (probe: cors) — The target did not grant the hostile origin https://evil.example (Access-Control-Allow-Origin=None); the unsafe-CORS concern is refuted.", "result_meaning": "evidence disproved the issue or ruled it not applicable", "not_tested": "The issue was ruled out under the tested configuration; no further paths were probed.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "No action required based on current evidence; retain for regression tracking."}, "rels": [{"rel": "discovered by", "labels": ["cors"]}, {"rel": "tested by", "labels": ["cors"]}, {"rel": "verified by", "labels": ["cors"]}, {"rel": "supported by", "labels": ["COR-0001"]}, {"rel": "affects", "labels": ["ui"]}], "rationale": "The target did not grant the hostile origin https://evil.example (Access-Control-Allow-Origin=None); the unsafe-CORS concern is refuted.", "method": "active_probe", "evidence": {"url": "http://localhost:3000/", "origin_sent": "https://evil.example", "reachable": true, "refused": false, "status_code": 200, "simple": {"Access-Control-Allow-Origin": null, "Access-Control-Allow-Credentials": null, "Access-Control-Allow-Methods": null, "Access-Control-Allow-Headers": null, "Vary": "Origin"}, "preflight_status": 204, "preflight": {"Access-Control-Allow-Origin": null, "Access-Control-Allow-Credentials": null, "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE", "Access-Control-Allow-Headers": "content-type,authorization", "Vary": "Origin, Access-Control-Request-Headers"}, "probe_error": null, "timestamp": "2026-09-28T11:10:25.312369+00:00", "fingerprint": "f6088eafa251abe0", "correlation_group": "COR-0001", "correlated_with": ["WT-HDR-0003", "WT-HDR-0002", "WT-HDR-0004", "WT-HDR-0001", "WT-HDR-0005", "WT-HDR-0006", "WT-RATE-0001"], "correlation_keys": ["endpoint:http://localhost:3000"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 3 independent tools (cors, rate-limit, security-headers) sharing endpoint:http://localhost:3000. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285113+00:00"}, {"from": "correlated", "to": "false_positive", "requested": "false_positive", "actor": "cors", "applied": true, "rationale": "The target did not grant the hostile origin https://evil.example (Access-Control-Allow-Origin=None); the unsafe-CORS concern is refuted.", "timestamp": "2026-09-28T11:11:26.209925+00:00"}], "observed_allow_origin": null, "observed_allow_credentials": null, "reflects_arbitrary_origin": false, "verification_status": "refuted", "evidence": "The target did not grant the hostile origin https://evil.example (Access-Control-Allow-Origin=None); the unsafe-CORS concern is refuted."}}, {"fp": "4287693df5aa7023", "id": "WT-AUTH-0001", "title": "Auth/MCP access control: http://localhost:3000/api/mcp", "sev": "info", "status": "needs_manual_review", "result": "inconclusive", "score": 0.0, "score_model": "watchtower-risk-score-v1", "tool": "auth-mcp", "surface": "http://localhost:3000/api/mcp", "conf": "medium", "cwe": "CWE-306", "expl": {"detected": "auth-mcp reported: Active probe requested http://localhost:3000/api/mcp unauthenticated and with invalid/malformed credentials to check whether protected functionality is reachable without auth. Only status codes and non-sensitive metadata are recorded; the verdict is assigned by the verifier (a bare HTTP 200 is not treated as a weakness).", "matters": "An unauthenticated MCP/administrative surface could expose tools or data. Exposure is only a weakness if the surface is actually reachable and open.", "verification": "active_probe (probe: auth-mcp) — http://localhost:3000/api/mcp returned HTTP 404. A 404 does NOT establish that the MCP surface is absent from the target's actual configured runtime — the route may simply be unmounted under the development runtime exercised here, while the production/serverless API surface was not exercised. MCP exposure can be neither confirmed nor ruled out; manual review required.", "result_meaning": "evidence was inconclusive; a human should investigate", "not_tested": "The production/serverless runtime of this endpoint was not exercised; only the local development runtime responded, so the verdict is inconclusive.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Re-run the auth/MCP probe against the production/serverless runtime (where the /api functions are actually mounted) to determine whether the MCP surface enforces authentication."}, "rels": [{"rel": "discovered by", "labels": ["auth-mcp"]}, {"rel": "tested by", "labels": ["auth-mcp"]}, {"rel": "related to", "labels": ["/api/mcp"]}, {"rel": "affects", "labels": ["mcp"]}], "rationale": "http://localhost:3000/api/mcp returned HTTP 404. A 404 does NOT establish that the MCP surface is absent from the target's actual configured runtime — the route may simply be unmounted under the development runtime exercised here, while the production/serverless API surface was not exercised. MCP exposure can be neither confirmed nor ruled out; manual review required.", "method": "active_probe", "evidence": {"endpoint": "http://localhost:3000/api/mcp", "kind": "mcp", "expected": "protected", "method": "POST", "status_by_state": {"none": 404, "invalid_bearer": 404, "malformed": 404}, "headers": {}, "mcp_exposed_tools": null, "error": null, "timestamp": "2026-09-28T11:10:51.774073+00:00", "refused": false, "fingerprint": "4287693df5aa7023", "safe_headers": {}, "verification_status": "inconclusive", "evidence": "http://localhost:3000/api/mcp returned HTTP 404. A 404 does NOT establish that the MCP surface is absent from the target's actual configured runtime — the route may simply be unmounted under the development runtime exercised here, while the production/serverless API surface was not exercised. MCP exposure can be neither confirmed nor ruled out; manual review required.", "remediation": "Re-run the auth/MCP probe against the production/serverless runtime (where the /api functions are actually mounted) to determine whether the MCP surface enforces authentication.", "lifecycle": [{"from": "suspected", "to": "needs_manual_review", "requested": "needs_manual_review", "actor": "auth-mcp", "applied": true, "rationale": "http://localhost:3000/api/mcp returned HTTP 404. A 404 does NOT establish that the MCP surface is absent from the target's actual configured runtime — the route may simply be unmounted under the development runtime exercised here, while the production/serverless API surface was not exercised. MCP exposure can be neither confirmed nor ruled out; manual review required.", "timestamp": "2026-09-28T11:11:26.209950+00:00"}]}}, {"fp": "8089670bfe33acd9", "id": "WT-AUTH-0002", "title": "Auth/MCP access control: http://localhost:3000/api/mcp-proxy", "sev": "info", "status": "needs_manual_review", "result": "inconclusive", "score": 0.0, "score_model": "watchtower-risk-score-v1", "tool": "auth-mcp", "surface": "http://localhost:3000/api/mcp-proxy", "conf": "medium", "cwe": "CWE-306", "expl": {"detected": "auth-mcp reported: Active probe requested http://localhost:3000/api/mcp-proxy unauthenticated and with invalid/malformed credentials to check whether protected functionality is reachable without auth. Only status codes and non-sensitive metadata are recorded; the verdict is assigned by the verifier (a bare HTTP 200 is not treated as a weakness).", "matters": "An unauthenticated MCP/administrative surface could expose tools or data. Exposure is only a weakness if the surface is actually reachable and open.", "verification": "active_probe (probe: auth-mcp) — http://localhost:3000/api/mcp-proxy returned HTTP 404. A 404 does NOT establish that the MCP surface is absent from the target's actual configured runtime — the route may simply be unmounted under the development runtime exercised here, while the production/serverless API surface was not exercised. MCP exposure can be neither confirmed nor ruled out; manual review required.", "result_meaning": "evidence was inconclusive; a human should investigate", "not_tested": "The production/serverless runtime of this endpoint was not exercised; only the local development runtime responded, so the verdict is inconclusive.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "Re-run the auth/MCP probe against the production/serverless runtime (where the /api functions are actually mounted) to determine whether the MCP surface enforces authentication."}, "rels": [{"rel": "discovered by", "labels": ["auth-mcp"]}, {"rel": "tested by", "labels": ["auth-mcp"]}, {"rel": "supported by", "labels": ["COR-0002"]}, {"rel": "related to", "labels": ["/api/mcp-proxy"]}, {"rel": "affects", "labels": ["mcp-proxy"]}], "rationale": "http://localhost:3000/api/mcp-proxy returned HTTP 404. A 404 does NOT establish that the MCP surface is absent from the target's actual configured runtime — the route may simply be unmounted under the development runtime exercised here, while the production/serverless API surface was not exercised. MCP exposure can be neither confirmed nor ruled out; manual review required.", "method": "active_probe", "evidence": {"endpoint": "http://localhost:3000/api/mcp-proxy", "kind": "mcp", "expected": "protected", "method": "POST", "status_by_state": {"none": 404, "invalid_bearer": 404, "malformed": 404}, "headers": {}, "mcp_exposed_tools": null, "error": null, "timestamp": "2026-09-28T11:10:57.928995+00:00", "refused": false, "fingerprint": "8089670bfe33acd9", "correlation_group": "COR-0002", "correlated_with": ["WT-SSRF-0001"], "correlation_keys": ["endpoint:http://localhost:3000/api/mcp-proxy"], "lifecycle": [{"from": "suspected", "to": "correlated", "requested": "correlated", "actor": "correlator", "applied": true, "rationale": "Corroborated by 2 independent tools (auth-mcp, ssrf) sharing endpoint:http://localhost:3000/api/mcp-proxy. Correlation raises confidence; it is not verification.", "timestamp": "2026-09-28T11:11:22.285128+00:00"}, {"from": "correlated", "to": "needs_manual_review", "requested": "needs_manual_review", "actor": "auth-mcp", "applied": true, "rationale": "http://localhost:3000/api/mcp-proxy returned HTTP 404. A 404 does NOT establish that the MCP surface is absent from the target's actual configured runtime — the route may simply be unmounted under the development runtime exercised here, while the production/serverless API surface was not exercised. MCP exposure can be neither confirmed nor ruled out; manual review required.", "timestamp": "2026-09-28T11:11:26.209959+00:00"}], "safe_headers": {}, "verification_status": "inconclusive", "evidence": "http://localhost:3000/api/mcp-proxy returned HTTP 404. A 404 does NOT establish that the MCP surface is absent from the target's actual configured runtime — the route may simply be unmounted under the development runtime exercised here, while the production/serverless API surface was not exercised. MCP exposure can be neither confirmed nor ruled out; manual review required.", "remediation": "Re-run the auth/MCP probe against the production/serverless runtime (where the /api functions are actually mounted) to determine whether the MCP surface enforces authentication."}}, {"fp": "a126c5cecc059745", "id": "WT-SSRF-0002", "title": "Server-side request forgery: http://localhost:3000/api/rss-proxy", "sev": "info", "status": "false_positive", "result": "refuted", "score": 0.0, "score_model": "watchtower-risk-score-v1", "tool": "ssrf", "surface": "http://localhost:3000/api/rss-proxy", "conf": "high", "cwe": "CWE-918", "expl": {"detected": "ssrf reported: Active SSRF probe fed a loopback canary URL (http://127.0.0.1:9001) to http://localhost:3000/api/rss-proxy via url, feed, u. SSRF is confirmed only if the canary actually received a request carrying our token; a URL echoed in a client response proves nothing.", "matters": "A server-side request forgery would let a caller pivot to internal targets. WATCHTOWER tests this with a loopback-only canary and confirms nothing without it.", "verification": "active_probe (probe: ssrf-canary) — http://localhost:3000/api/rss-proxy rejected the URL input (HTTP [400, 403]) and the canary was never contacted; no server-side request to our URL occurred, so SSRF is refuted here.", "result_meaning": "evidence disproved the issue or ruled it not applicable", "not_tested": "The issue was ruled out under the tested configuration; no further paths were probed.", "limitation": "Assessment ran against a LOCAL target only; results reflect the tested runtime and configuration, not necessarily production.", "guidance": "No action required based on current evidence; retain for regression tracking."}, "rels": [{"rel": "discovered by", "labels": ["ssrf"]}, {"rel": "tested by", "labels": ["ssrf-canary"]}, {"rel": "verified by", "labels": ["ssrf-canary"]}, {"rel": "related to", "labels": ["/api/rss-proxy"]}, {"rel": "affects", "labels": ["rss-proxy"]}], "rationale": "http://localhost:3000/api/rss-proxy rejected the URL input (HTTP [400, 403]) and the canary was never contacted; no server-side request to our URL occurred, so SSRF is refuted here.", "method": "active_probe", "evidence": {"endpoint": "http://localhost:3000/api/rss-proxy", "method": "GET", "params_tested": ["url", "feed", "u"], "canary_base": "http://127.0.0.1:9001", "canary_token": "WT-SSRF-e1b13a7a9a0c606b", "canary_received": false, "triggering_param": null, "canary_request_method": null, "canary_headers": null, "response_status_by_param": {"url": 403, "feed": 400, "u": 400}, "error": null, "timestamp": "2026-09-28T11:11:04.045057+00:00", "refused": false, "canary_bound": true, "fingerprint": "a126c5cecc059745", "verification_status": "refuted", "evidence": "http://localhost:3000/api/rss-proxy rejected the URL input (HTTP [400, 403]) and the canary was never contacted; no server-side request to our URL occurred, so SSRF is refuted here.", "lifecycle": [{"from": "suspected", "to": "false_positive", "requested": "false_positive", "actor": "ssrf-canary", "applied": true, "rationale": "http://localhost:3000/api/rss-proxy rejected the URL input (HTTP [400, 403]) and the canary was never contacted; no server-side request to our URL occurred, so SSRF is refuted here.", "timestamp": "2026-09-28T11:11:26.209980+00:00"}]}}];
+var NA = "NOT AVAILABLE IN ASSESSMENT";
+var SEVC={critical:'#EF4444',high:'#F97316',medium:'#F59E0B',low:'#0A84FF',info:'#64748B'};
+var STAC={verified:'#10B981',correlated:'#8B5CF6',suspected:'#00E5FF',needs_manual_review:'#F59E0B',false_positive:'#64748B'};
+var RESC={confirmed:'#10B981',refuted:'#64748B',inconclusive:'#F59E0B',not_applicable:'#64748B'};
+var CONC={high:'#10B981',medium:'#F59E0B',low:'#64748B'};
+function el(tag,cls,txt){var n=document.createElement(tag);if(cls)n.className=cls;
+  if(txt!==undefined&&txt!==null)n.textContent=txt;return n;}
+function chip(text,color){var c=el('span','chip',text);c.style.setProperty('--c',color);return c;}
+function labelize(s){return String(s||'').replace(/_/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();});}
+function field(parent,label,value,mono){
+  var f=el('div','insp-field');f.appendChild(el('div','lbl',label));
+  var has=value!==undefined&&value!==null&&String(value).trim()!=='';
+  var t=el('div','txt'+(has?(mono?' mono':''):' na'),has?value:NA);
+  f.appendChild(t);parent.appendChild(f);return f;}
+// JS-WIRE
+function render(v){
+  var b=document.getElementById('insp-body');b.innerHTML='';
+  document.getElementById('insp-close').style.display='';
+  var head=el('div','insp-field');head.appendChild(el('div','lbl','Fingerprint'));
+  head.appendChild(el('div','txt mono',v.fp||NA));b.appendChild(head);
+  field(b,'Title',v.title);
+  var axes=el('div','insp-field');axes.appendChild(el('div','lbl','Classification'));
+  var row=el('div');row.style.cssText='margin-top:6px;display:flex;flex-wrap:wrap;gap:6px';
+  row.appendChild(chip(v.sev,SEVC[v.sev]||'#64748B'));
+  row.appendChild(chip(labelize(v.status),STAC[v.status]||'#64748B'));
+  if(v.result)row.appendChild(chip(v.result,RESC[v.result]||'#64748B'));
+  row.appendChild(chip('confidence: '+v.conf,CONC[v.conf]||'#64748B'));
+  axes.appendChild(row);b.appendChild(axes);
+  field(b,'Risk score ('+(v.score_model||'')+')',(v.score===null||v.score===undefined)?null:v.score,true);
+  field(b,'Verification result',v.result,false);
+  field(b,'Tool',v.tool,true);
+  field(b,'Affected endpoint / surface',v.surface,true);
+  field(b,'Evidence confidence',v.conf);
+  var ex=v.expl||{};
+  field(b,'What was detected',ex.detected);
+  field(b,'Why it matters',ex.matters);
+  field(b,'Verification performed',ex.verification);
+  field(b,'What the result means',ex.result_meaning);
+  field(b,'What was not tested',ex.not_tested);
+  field(b,'Limitation',ex.limitation);
+  field(b,'Guidance',ex.guidance);
+  if(v.rationale)field(b,'Verification rationale',v.rationale);
+  var cf=el('div','insp-field');cf.appendChild(el('div','lbl','Evidence chain'));
+  if(v.rels&&v.rels.length){var wrap=el('div');wrap.style.marginTop='6px';
+    v.rels.forEach(function(r){var s=el('span','rel');s.appendChild(el('b',null,r.rel+':'));
+      s.appendChild(document.createTextNode(' '+r.labels.join(', ')));wrap.appendChild(s);});
+    cf.appendChild(wrap);}else{cf.appendChild(el('div','txt na',NA));}
+  b.appendChild(cf);
+  var rf=el('div','insp-field');rf.appendChild(el('div','lbl','Raw evidence (as recorded)'));
+  var keys=v.evidence?Object.keys(v.evidence):[];
+  if(keys.length){rf.appendChild(el('pre','pre',JSON.stringify(v.evidence,null,2)));}
+  else{rf.appendChild(el('div','txt na',NA));}
+  b.appendChild(rf);
+}
+// JS-WIRE2
+var rows=[].slice.call(document.querySelectorAll('.finding-row'));
+var active='all';
+function applyFilter(){
+  var q=(document.getElementById('f-search').value||'').toLowerCase().trim();
+  var shown=0;
+  rows.forEach(function(r){
+    var sev=r.getAttribute('data-severity'),st=r.getAttribute('data-status');
+    var okF=(active==='all'||sev===active||st===active);
+    var okQ=(!q||r.getAttribute('data-search').indexOf(q)>=0);
+    var vis=okF&&okQ;r.style.display=vis?'':'none';if(vis)shown++;
+  });
+  document.getElementById('f-count').textContent=shown+' of '+rows.length+' findings';
+  document.getElementById('f-none').style.display=shown?'none':'';
+}
+document.getElementById('f-filters').addEventListener('click',function(e){
+  var btn=e.target.closest('.fbtn');if(!btn)return;
+  active=btn.getAttribute('data-filter');
+  [].forEach.call(this.querySelectorAll('.fbtn'),function(b){b.classList.toggle('on',b===btn);});
+  applyFilter();
+});
+document.getElementById('f-search').addEventListener('input',applyFilter);
+function select(r){
+  rows.forEach(function(x){x.classList.toggle('active-row',x===r);});
+  render(FINDINGS[+r.getAttribute('data-idx')]);
+  document.getElementById('inspector').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+rows.forEach(function(r){r.addEventListener('click',function(){select(r);});});
+document.getElementById('insp-close').addEventListener('click',function(){
+  rows.forEach(function(x){x.classList.remove('active-row');});
+  var b=document.getElementById('insp-body');b.innerHTML='';
+  var e=el('div','insp-empty');e.appendChild(el('p',null,'Select a finding to inspect its evidence.'));
+  b.appendChild(e);this.style.display='none';
+});
+var rr=document.getElementById('rerun');
+if(rr)rr.addEventListener('click',function(){var o=this.innerHTML;this.disabled=true;
+  this.textContent='Re-run is a CLI action';setTimeout(function(){rr.innerHTML=o;rr.disabled=false;},1600);});
+[].forEach.call(document.querySelectorAll('.sb-item'),function(a){
+  a.addEventListener('click',function(){var h=this.getAttribute('href');
+    if(h&&h.charAt(0)==='#'){[].forEach.call(document.querySelectorAll('.sb-item'),
+      function(x){x.classList.remove('active');});this.classList.add('active');}});
+});
+applyFilter();
+</script>
+</body></html>
